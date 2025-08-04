@@ -1,4 +1,4 @@
-import React, { useState } from "react"; // Removed unused useEffect
+import React, { useState } from "react";
 import {
   ShoppingCart,
   Package,
@@ -24,6 +24,7 @@ import {
   Clock,
   CreditCard,
   Bell,
+  CheckCircle,
 } from "lucide-react";
 
 const SnackInventoryApp = () => {
@@ -31,7 +32,8 @@ const SnackInventoryApp = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [cart, setCart] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [showLowStockModal, setShowLowStockModal] = useState(false);
+  const [addToCartAnimation, setAddToCartAnimation] = useState({});
 
   // Sample data - in real app, this would come from MongoDB
   const [snacks, setSnacks] = useState([
@@ -44,7 +46,6 @@ const SnackInventoryApp = () => {
       image: "🍟",
       description: "Crispy potato chips",
       sales: 45,
-      rating: 4.5,
       lowStockAlert: 5,
     },
     {
@@ -56,7 +57,6 @@ const SnackInventoryApp = () => {
       image: "🍫",
       description: "Smooth milk chocolate",
       sales: 32,
-      rating: 4.8,
       lowStockAlert: 3,
     },
     {
@@ -68,7 +68,6 @@ const SnackInventoryApp = () => {
       image: "🥤",
       description: "Refreshing cola drink",
       sales: 28,
-      rating: 4.3,
       lowStockAlert: 5,
     },
     {
@@ -80,39 +79,35 @@ const SnackInventoryApp = () => {
       image: "🍪",
       description: "Chocolate cream cookies",
       sales: 38,
-      rating: 4.6,
       lowStockAlert: 4,
     },
   ]);
 
-  // FIX 1: Dynamically generate one sale for today to make the dashboard functional.
+  // Group sales by customer and datetime
   const [salesHistory, setSalesHistory] = useState([
     {
       id: 1,
-      snackId: 1,
-      snackName: "Lays Classic",
-      quantity: 2,
-      price: 40,
-      date: new Date().toISOString(),
       customer: "Rahul",
+      date: new Date().toISOString(),
+      items: [
+        { snackId: 1, snackName: "Lays Classic", quantity: 2, price: 20 },
+        { snackId: 2, snackName: "Dairy Milk", quantity: 1, price: 45 },
+      ],
+      totalAmount: 85,
     },
     {
       id: 2,
-      snackId: 2,
-      snackName: "Dairy Milk",
-      quantity: 1,
-      price: 45,
-      date: "2025-08-04T11:15:00",
       customer: "Priya",
+      date: "2025-08-04T11:15:00",
+      items: [{ snackId: 2, snackName: "Dairy Milk", quantity: 1, price: 45 }],
+      totalAmount: 45,
     },
     {
       id: 3,
-      snackId: 3,
-      snackName: "Coca Cola",
-      quantity: 3,
-      price: 105,
-      date: "2025-08-03T15:20:00",
       customer: "Amit",
+      date: "2025-08-03T15:20:00",
+      items: [{ snackId: 3, snackName: "Coca Cola", quantity: 3, price: 35 }],
+      totalAmount: 105,
     },
   ]);
 
@@ -150,7 +145,8 @@ const SnackInventoryApp = () => {
     if (user) {
       setCurrentUser(user);
       setLoginError("");
-      setActiveView("dashboard");
+      // Open shop page for customers, dashboard for admin
+      setActiveView(user.role === "customer" ? "shop" : "dashboard");
     } else {
       setLoginError("Invalid credentials");
     }
@@ -166,12 +162,15 @@ const SnackInventoryApp = () => {
   const lowStockItems = snacks.filter(
     (snack) => snack.quantity <= snack.lowStockAlert
   );
-  const totalSales = salesHistory.reduce((sum, sale) => sum + sale.price, 0);
+  const totalSales = salesHistory.reduce(
+    (sum, sale) => sum + sale.totalAmount,
+    0
+  );
   const todaySales = salesHistory
     .filter(
       (sale) => new Date(sale.date).toDateString() === new Date().toDateString()
     )
-    .reduce((sum, sale) => sum + sale.price, 0);
+    .reduce((sum, sale) => sum + sale.totalAmount, 0);
 
   const filteredSnacks = snacks.filter((snack) => {
     const matchesSearch = snack.name
@@ -195,6 +194,12 @@ const SnackInventoryApp = () => {
     } else {
       setCart([...cart, { ...snack, quantity: 1 }]);
     }
+
+    // Add animation effect
+    setAddToCartAnimation({ [snack.id]: true });
+    setTimeout(() => {
+      setAddToCartAnimation({ [snack.id]: false });
+    }, 350);
   };
 
   const removeFromCart = (id) => {
@@ -211,9 +216,8 @@ const SnackInventoryApp = () => {
     }
   };
 
-  // FIX 2: Implement stock validation at checkout.
   const checkout = () => {
-    // 1. Validate stock for every item in the cart *before* processing the sale.
+    // Validate stock for every item in the cart before processing the sale
     const invalidItems = [];
     for (const item of cart) {
       const stockItem = snacks.find((s) => s.id === item.id);
@@ -228,22 +232,27 @@ const SnackInventoryApp = () => {
           ", "
         )}. Please review your cart.`
       );
-      // Optionally, you could update the cart to reflect the available stock.
-      return; // Stop the checkout process
+      return;
     }
 
-    // 2. If all items are available, proceed with the checkout.
-    const newSales = cart.map((item) => ({
+    // Create new sale record grouped by customer
+    const newSale = {
       id: salesHistory.length + Math.random(),
-      snackId: item.id,
-      snackName: item.name,
-      quantity: item.quantity,
-      price: item.price * item.quantity,
-      date: new Date().toISOString(),
       customer: currentUser.name,
-    }));
+      date: new Date().toISOString(),
+      items: cart.map((item) => ({
+        snackId: item.id,
+        snackName: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      totalAmount: cart.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      ),
+    };
 
-    setSalesHistory([...salesHistory, ...newSales]);
+    setSalesHistory([newSale, ...salesHistory]);
 
     // Update inventory
     setSnacks(
@@ -274,7 +283,6 @@ const SnackInventoryApp = () => {
       id: Date.now(),
       ...snackData,
       sales: 0,
-      rating: 0,
       lowStockAlert: 5,
     };
     setSnacks([...snacks, newSnack]);
@@ -296,16 +304,11 @@ const SnackInventoryApp = () => {
     }
   };
 
-  // The rest of the JSX remains the same, except for one small fix in the sales history table.
-  // ... (Login form JSX)
-  // ... (Header and Navigation JSX)
-  // ... (Dashboard and other views JSX)
-
-  // In the "Sales History View" table body:
-  // ...
-  // <tbody className={`divide-y ${darkMode ? 'divide-gray-700' : 'divide-gray-200'}`}> // <-- FIX 3: Dynamic divider color
-  // ...
-  // The rest of the code is unchanged.
+  // Get available quantity for display (considering cart items)
+  const getAvailableQuantity = (snack) => {
+    const cartItem = cart.find((item) => item.id === snack.id);
+    return snack.quantity - (cartItem ? cartItem.quantity : 0);
+  };
 
   if (!currentUser) {
     return (
@@ -451,20 +454,6 @@ const SnackInventoryApp = () => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className={`relative p-2 rounded-lg ${
-                  darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
-                }`}
-              >
-                <Bell size={20} />
-                {lowStockItems.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {lowStockItems.length}
-                  </span>
-                )}
-              </button>
-
               {currentUser.role === "customer" && (
                 <button
                   onClick={() => setActiveView("cart")}
@@ -505,54 +494,6 @@ const SnackInventoryApp = () => {
             </div>
           </div>
         </div>
-
-        {/* Notifications Panel */}
-        {showNotifications && (
-          <div
-            className={`absolute right-4 top-20 w-80 ${
-              darkMode ? "bg-gray-800" : "bg-white"
-            } rounded-lg shadow-xl border ${
-              darkMode ? "border-gray-700" : "border-gray-200"
-            } z-50`}
-          >
-            <div className="p-4">
-              <h3 className="font-semibold mb-3">Notifications</h3>
-              {lowStockItems.length > 0 ? (
-                <div className="space-y-2">
-                  {lowStockItems.map((snack) => (
-                    <div
-                      key={snack.id}
-                      className={`p-3 rounded-lg ${
-                        darkMode ? "bg-red-900/20" : "bg-red-50"
-                      } border-l-4 border-red-500`}
-                    >
-                      <div className="flex items-center">
-                        <AlertTriangle
-                          className="text-red-500 mr-2"
-                          size={16}
-                        />
-                        <div>
-                          <p className="text-sm font-medium">{snack.name}</p>
-                          <p className="text-xs text-red-600">
-                            Only {snack.quantity} left in stock
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p
-                  className={`text-sm ${
-                    darkMode ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  No new notifications
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -561,9 +502,11 @@ const SnackInventoryApp = () => {
           <div className="flex flex-wrap gap-2">
             {[
               { key: "dashboard", label: "Dashboard", icon: BarChart3 },
-              { key: "inventory", label: "Inventory", icon: Package },
               ...(currentUser.role === "admin"
-                ? [{ key: "sales", label: "Sales History", icon: TrendingUp }]
+                ? [
+                    { key: "inventory", label: "Inventory", icon: Package },
+                    { key: "sales", label: "Sales History", icon: TrendingUp },
+                  ]
                 : []),
               ...(currentUser.role === "customer"
                 ? [{ key: "shop", label: "Shop", icon: ShoppingCart }]
@@ -614,10 +557,14 @@ const SnackInventoryApp = () => {
                 </div>
               </div>
 
+              {/* Clickable Low Stock Card */}
               <div
+                onClick={() => setShowLowStockModal(true)}
                 className={`${
-                  darkMode ? "bg-gray-800" : "bg-white"
-                } rounded-xl shadow-lg p-6 border-l-4 border-red-500`}
+                  darkMode
+                    ? "bg-gray-800 hover:bg-gray-750"
+                    : "bg-white hover:bg-gray-50"
+                } rounded-xl shadow-lg p-6 border-l-4 border-red-500 cursor-pointer transition-all transform hover:scale-105`}
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -630,6 +577,9 @@ const SnackInventoryApp = () => {
                     </p>
                     <p className="text-2xl font-bold text-red-600">
                       {lowStockItems.length}
+                    </p>
+                    <p className="text-xs text-red-500 mt-1">
+                      Click to view details
                     </p>
                   </div>
                   <AlertTriangle className="text-red-500" size={32} />
@@ -699,26 +649,19 @@ const SnackInventoryApp = () => {
                       }`}
                     >
                       <div>
-                        <p className="font-medium">{sale.snackName}</p>
+                        <p className="font-medium">{sale.customer}</p>
                         <p
                           className={`text-sm ${
                             darkMode ? "text-gray-400" : "text-gray-600"
                           }`}
                         >
-                          {sale.customer} •{" "}
+                          {sale.items.length} items •{" "}
                           {new Date(sale.date).toLocaleTimeString()}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-green-600">
-                          ₹{sale.price}
-                        </p>
-                        <p
-                          className={`text-sm ${
-                            darkMode ? "text-gray-400" : "text-gray-600"
-                          }`}
-                        >
-                          Qty: {sale.quantity}
+                          ₹{sale.totalAmount}
                         </p>
                       </div>
                     </div>
@@ -749,16 +692,13 @@ const SnackInventoryApp = () => {
                         <div className="text-2xl mr-3">{snack.image}</div>
                         <div className="flex-1">
                           <p className="font-medium">{snack.name}</p>
-                          <div className="flex items-center">
-                            <Star className="text-yellow-500 mr-1" size={14} />
-                            <span
-                              className={`text-sm ${
-                                darkMode ? "text-gray-400" : "text-gray-600"
-                              }`}
-                            >
-                              {snack.rating}
-                            </span>
-                          </div>
+                          <p
+                            className={`text-sm ${
+                              darkMode ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            {snack.category}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold">{snack.sales} sold</p>
@@ -779,7 +719,7 @@ const SnackInventoryApp = () => {
         )}
 
         {/* Inventory View */}
-        {activeView === "inventory" && (
+        {activeView === "inventory" && currentUser.role === "admin" && (
           <div className="space-y-6">
             {/* Search and Filter */}
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -819,15 +759,13 @@ const SnackInventoryApp = () => {
                 </select>
               </div>
 
-              {currentUser.role === "admin" && (
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                >
-                  <Plus size={16} className="mr-2" />
-                  Add Snack
-                </button>
-              )}
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+              >
+                <Plus size={16} className="mr-2" />
+                Add Snack
+              </button>
             </div>
 
             {/* Snacks Grid */}
@@ -849,16 +787,6 @@ const SnackInventoryApp = () => {
                     >
                       {snack.description}
                     </p>
-                    <div className="flex items-center justify-center mb-2">
-                      <Star className="text-yellow-500 mr-1" size={14} />
-                      <span
-                        className={`text-sm ${
-                          darkMode ? "text-gray-400" : "text-gray-600"
-                        }`}
-                      >
-                        {snack.rating}
-                      </span>
-                    </div>
                   </div>
 
                   <div className="space-y-3">
@@ -898,34 +826,19 @@ const SnackInventoryApp = () => {
                       )}
 
                     <div className="flex gap-2">
-                      {currentUser.role === "customer" &&
-                        snack.quantity > 0 && (
-                          <button
-                            onClick={() => addToCart(snack)}
-                            className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-                          >
-                            <ShoppingCart size={16} className="mr-2" />
-                            Add to Cart
-                          </button>
-                        )}
-
-                      {currentUser.role === "admin" && (
-                        <>
-                          <button
-                            onClick={() => setEditingSnack(snack)}
-                            className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
-                          >
-                            <Edit size={16} className="mr-2" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteSnack(snack.id)}
-                            className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </>
-                      )}
+                      <button
+                        onClick={() => setEditingSnack(snack)}
+                        className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
+                      >
+                        <Edit size={16} className="mr-2" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSnack(snack.id)}
+                        className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -936,7 +849,6 @@ const SnackInventoryApp = () => {
 
         {/* Shop View (Customer) */}
         {activeView === "shop" && currentUser.role === "customer" && (
-          // This entire section is unchanged
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold mb-2">
@@ -993,8 +905,18 @@ const SnackInventoryApp = () => {
                     key={snack.id}
                     className={`${
                       darkMode ? "bg-gray-800" : "bg-white"
-                    } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105`}
+                    } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 relative`}
                   >
+                    {/* Add to Cart Animation */}
+                    {addToCartAnimation[snack.id] && (
+                      <div className="absolute inset-0 bg-green-500 bg-opacity-20 rounded-xl flex items-center justify-center z-10 pointer-events-none animate-pulse">
+                        <div className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center shadow-lg">
+                          <CheckCircle size={20} className="mr-2" />
+                          Added to Cart!
+                        </div>
+                      </div>
+                    )}
+
                     <div className="text-center mb-4">
                       <div className="text-5xl mb-3">{snack.image}</div>
                       <h3 className="font-bold text-xl mb-2">{snack.name}</h3>
@@ -1006,48 +928,22 @@ const SnackInventoryApp = () => {
                         {snack.description}
                       </p>
 
-                      <div className="flex items-center justify-center mb-2">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`${
-                              i < Math.floor(snack.rating)
-                                ? "text-yellow-500"
-                                : "text-gray-300"
-                            }`}
-                            size={16}
-                            fill={
-                              i < Math.floor(snack.rating)
-                                ? "currentColor"
-                                : "none"
-                            }
-                          />
-                        ))}
-                        <span
-                          className={`ml-2 text-sm ${
-                            darkMode ? "text-gray-400" : "text-gray-600"
-                          }`}
-                        >
-                          ({snack.rating})
-                        </span>
-                      </div>
-
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-3xl font-bold text-green-600">
                           ₹{snack.price}
                         </span>
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            snack.quantity > snack.lowStockAlert
+                            getAvailableQuantity(snack) > snack.lowStockAlert
                               ? "bg-green-100 text-green-800"
                               : "bg-yellow-100 text-yellow-800"
                           }`}
                         >
-                          {snack.quantity} left
+                          {getAvailableQuantity(snack)} left
                         </span>
                       </div>
 
-                      {snack.quantity <= snack.lowStockAlert && (
+                      {getAvailableQuantity(snack) <= snack.lowStockAlert && (
                         <div className="flex items-center justify-center text-orange-600 text-sm mb-3">
                           <AlertTriangle size={14} className="mr-1" />
                           Hurry! Limited stock
@@ -1056,10 +952,17 @@ const SnackInventoryApp = () => {
 
                       <button
                         onClick={() => addToCart(snack)}
-                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg font-semibold flex items-center justify-center"
+                        disabled={getAvailableQuantity(snack) === 0}
+                        className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center transition-all transform ${
+                          getAvailableQuantity(snack) === 0
+                            ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                            : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg"
+                        }`}
                       >
                         <ShoppingCart size={18} className="mr-2" />
-                        Add to Cart
+                        {getAvailableQuantity(snack) === 0
+                          ? "Out of Stock"
+                          : "Add to Cart"}
                       </button>
                     </div>
                   </div>
@@ -1070,7 +973,6 @@ const SnackInventoryApp = () => {
 
         {/* Cart View */}
         {activeView === "cart" && currentUser.role === "customer" && (
-          // This entire section is unchanged
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Shopping Cart</h2>
@@ -1253,20 +1155,16 @@ const SnackInventoryApp = () => {
                         Date & Time
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Item
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
                         Customer
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Quantity
+                        Items Purchased
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Amount
+                        Total Cost
                       </th>
                     </tr>
                   </thead>
-                  {/* FIX 3: DYNAMIC TABLE DIVIDER */}
                   <tbody
                     className={`divide-y ${
                       darkMode ? "divide-gray-700" : "divide-gray-200"
@@ -1294,33 +1192,38 @@ const SnackInventoryApp = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <span className="text-2xl mr-3">
-                              {snacks.find((s) => s.id === sale.snackId)
-                                ?.image || "🍿"}
-                            </span>
-                            <span className="font-medium">
-                              {sale.snackName}
-                            </span>
+                          <span className="font-medium">{sale.customer}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            {sale.items.map((item, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center text-sm"
+                              >
+                                <span className="text-lg mr-2">
+                                  {snacks.find((s) => s.id === item.snackId)
+                                    ?.image || "🍿"}
+                                </span>
+                                <span className="font-medium mr-2">
+                                  {item.snackName}
+                                </span>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs ${
+                                    darkMode
+                                      ? "bg-blue-900 text-blue-300"
+                                      : "bg-blue-100 text-blue-800"
+                                  }`}
+                                >
+                                  x{item.quantity}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="font-medium">{sale.customer}</span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 rounded-full text-sm font-medium ${
-                              darkMode
-                                ? "bg-blue-900 text-blue-300"
-                                : "bg-blue-100 text-blue-800"
-                            }`}
-                          >
-                            {sale.quantity}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className="font-semibold text-green-600">
-                            ₹{sale.price}
+                            ₹{sale.totalAmount}
                           </span>
                         </td>
                       </tr>
@@ -1332,6 +1235,80 @@ const SnackInventoryApp = () => {
           </div>
         )}
       </div>
+
+      {/* Low Stock Modal */}
+      {showLowStockModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div
+            className={`${
+              darkMode ? "bg-gray-800" : "bg-white"
+            } rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold flex items-center">
+                <AlertTriangle className="text-red-500 mr-2" size={24} />
+                Low Stock Items
+              </h3>
+              <button
+                onClick={() => setShowLowStockModal(false)}
+                className={`p-2 rounded-lg ${
+                  darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {lowStockItems.length > 0 ? (
+              <div className="space-y-3">
+                {lowStockItems.map((snack) => (
+                  <div
+                    key={snack.id}
+                    className={`p-4 rounded-lg ${
+                      darkMode ? "bg-red-900/20" : "bg-red-50"
+                    } border-l-4 border-red-500`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">{snack.image}</span>
+                        <div>
+                          <p className="font-medium">{snack.name}</p>
+                          <p className="text-sm text-red-600">
+                            Only {snack.quantity} left in stock
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">₹{snack.price}</p>
+                        <p className="text-xs text-gray-500">
+                          {snack.category}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p
+                className={`text-center py-8 ${
+                  darkMode ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
+                No low stock items
+              </p>
+            )}
+
+            <div className="mt-6">
+              <button
+                onClick={() => setShowLowStockModal(false)}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Snack Modal */}
       {(showAddModal || editingSnack) && currentUser.role === "admin" && (
@@ -1349,7 +1326,6 @@ const SnackInventoryApp = () => {
   );
 };
 
-// The SnackModal component is unchanged.
 const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
   const [formData, setFormData] = useState({
     name: snack?.name || "",
