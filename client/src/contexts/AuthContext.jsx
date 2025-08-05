@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   const verifyToken = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get("/api/auth/me");
+      const response = await api.get("/auth/me");
 
       if (response.data.success) {
         setUser(response.data.user);
@@ -118,7 +118,7 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError("");
 
-      const response = await api.post("/api/auth/register", userData);
+      const response = await api.post("/auth/register", userData);
 
       if (response.data.success) {
         const { token, user } = response.data;
@@ -167,7 +167,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       // Call logout endpoint (optional)
-      await api.post("/api/auth/logout");
+      await api.post("/auth/logout");
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
@@ -184,7 +184,7 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError("");
 
-      const response = await api.put("/api/auth/profile", profileData);
+      const response = await api.put("/auth/profile", profileData);
 
       if (response.data.success) {
         setUser(response.data.user);
@@ -213,7 +213,7 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError("");
 
-      const response = await api.put("/api/auth/change-password", passwordData);
+      const response = await api.put("/auth/change-password", passwordData);
 
       if (response.data.success) {
         return response.data;
