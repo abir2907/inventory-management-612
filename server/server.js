@@ -1,13 +1,14 @@
 // server.js
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const passport = require("passport");
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
-
-dotenv.config();
+const connectToDatabase = require("./config/database.js");
 
 const app = express();
 
@@ -63,16 +64,15 @@ app.use(passport.session());
 require("./config/passport")(passport);
 
 // MongoDB connection
-mongoose
-  .connect(
-    process.env.MONGODB_URI || "mongodb://localhost:27017/snack-inventory",
-    {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    }
-  )
-  .then(() => console.log("MongoDB connected successfully"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error("Database connection error:", error);
+    res.status(500).json({ message: "Database connection error" });
+  }
+});
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -112,6 +112,12 @@ app.use((err, req, res, _next) => {
 // 404 handler
 app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}...`);
 });
 
 module.exports = app;
