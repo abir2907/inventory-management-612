@@ -76,7 +76,7 @@ const SnackInventoryApp = () => {
 
   const loadSnacks = async () => {
     try {
-      const response = await snacksAPI.getSnacks();
+      const response = await snacksAPI.getSnacks({ limit: 1000 });
       setSnacks(response.data || []);
     } catch (error) {
       console.error("Error loading snacks:", error);
