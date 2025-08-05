@@ -80,6 +80,10 @@ app.use("/api/snacks", snackRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/users", userRoutes);
 
+app.get("/", (req, res) => {
+  res.send("API Working");
+});
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ message: "Server is running!", timestamp: new Date() });
