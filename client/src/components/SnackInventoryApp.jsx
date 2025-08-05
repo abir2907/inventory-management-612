@@ -58,6 +58,8 @@ const SnackInventoryApp = () => {
       loadInitialData();
       if (user.role === "customer") {
         setActiveView("shop");
+      } else {
+        setActiveView("dashboard");
       }
     }
   }, [user]);
@@ -100,24 +102,23 @@ const SnackInventoryApp = () => {
 
   const loadStats = async () => {
     try {
-      if (user?.role === "admin") {
-        const [snackStats, salesStats] = await Promise.all([
-          snacksAPI.getStats(),
-          salesAPI.getSalesStats(),
-        ]);
+      // Fetch snack stats for ALL users
+      const snackStats = await snacksAPI.getStats();
+      let salesStats = { data: { overall: { totalRevenue: 0 } } }; // Default sales stats
 
-        // ===== UPDATE THE SETSTATS CALL HERE =====
-        setStats({
-          // Both now use the consistent '.data.overall' structure
-          totalItems: snackStats.data?.overall?.totalQuantity || 0,
-          lowStockItems: snackStats.data?.lowStockCount || 0,
-          totalSales: salesStats.data?.overall?.totalRevenue || 0,
-          // The todaySales field doesn't exist in the API, so we set it to 0
-          todaySales: 0,
-        });
+      // Fetch sales stats ONLY for admins
+      if (user?.role === "admin") {
+        salesStats = await salesAPI.getSalesStats();
       }
+
+      setStats({
+        totalItems: snackStats.data?.overall?.totalQuantity || 0,
+        lowStockItems: snackStats.data?.lowStockCount || 0,
+        totalSales: salesStats.data?.overall?.totalRevenue || 0,
+        todaySales: 0, // This field doesn't exist in the API
+      });
     } catch (error) {
-      console.error("Error loading stats:", error); // Don't throw, stats are not critical
+      console.error("Error loading stats:", error);
     }
   };
 
@@ -384,41 +385,46 @@ const SnackInventoryApp = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Navigation */}
-        <nav className="mb-8">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: "dashboard", label: "Dashboard", icon: BarChart3 },
-              ...(user.role === "admin"
-                ? [
-                    { key: "inventory", label: "Inventory", icon: Package },
-                    { key: "sales", label: "Sales History", icon: TrendingUp },
-                  ]
-                : []),
-              ...(user.role === "customer"
-                ? [{ key: "shop", label: "Shop", icon: ShoppingCart }]
-                : []),
-              // eslint-disable-next-line no-unused-vars
-            ].map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => setActiveView(key)}
-                className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
-                  activeView === key
-                    ? "bg-blue-600 text-white shadow-lg"
-                    : darkMode
-                    ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                    : "bg-white text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <Icon size={16} className="mr-2" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </nav>
+        {user.role === "admin" && (
+          <nav className="mb-8">
+            <div className="flex flex-wrap gap-2">
+              {[
+                ...(user.role === "admin"
+                  ? [
+                      { key: "dashboard", label: "Dashboard", icon: BarChart3 },
+                      { key: "inventory", label: "Inventory", icon: Package },
+                      {
+                        key: "sales",
+                        label: "Sales History",
+                        icon: TrendingUp,
+                      },
+                    ]
+                  : []),
+                ...(user.role === "customer"
+                  ? [{ key: "shop", label: "Shop", icon: ShoppingCart }]
+                  : []),
+              ].map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveView(key)}
+                  className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
+                    activeView === key
+                      ? "bg-blue-600 text-white shadow-lg"
+                      : darkMode
+                      ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                      : "bg-white text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <Icon size={16} className="mr-2" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </nav>
+        )}
 
         {/* Dashboard View */}
-        {activeView === "dashboard" && (
+        {activeView === "dashboard" && user.role === "admin" && (
           <div className="space-y-8">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
