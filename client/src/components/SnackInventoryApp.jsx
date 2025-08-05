@@ -31,7 +31,7 @@ import { snacksAPI, salesAPI } from "../services/api";
 
 const SnackInventoryApp = () => {
   const { user, logout, isLoading } = useAuth();
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const [activeView, setActiveView] = useState("dashboard");
   const [cart, setCart] = useState([]);
   const [showLowStockModal, setShowLowStockModal] = useState(false);
