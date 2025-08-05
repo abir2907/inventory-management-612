@@ -1,6 +1,7 @@
 // routes/sales.js
 const express = require("express");
 const { body, query, validationResult } = require("express-validator");
+const mongoose = require("mongoose");
 const Sale = require("../models/Sale");
 const Snack = require("../models/Snack");
 const User = require("../models/User");

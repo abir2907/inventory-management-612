@@ -28,11 +28,11 @@ const seedUsers = async () => {
     const users = [
       {
         name: "Admin User",
-        email: process.env.ADMIN_EMAIL || "admin@snackhub.com",
-        password: "admin123",
+        email: process.env.ADMIN_EMAIL,
+        password: process.env.ADMIN_SEED_PASSWORD,
         role: "admin",
         hostelRoom: "Admin Office",
-        phoneNumber: "+91-9876543210",
+        phoneNumber: process.env.ADMIN_PHONE,
       },
       {
         name: "Rahul Kumar",
@@ -76,8 +76,10 @@ const seedUsers = async () => {
       },
     ];
 
-    const createdUsers = await User.insertMany(users);
+    // Use User.create() instead of insertMany() to trigger pre-save hooks for password hashing
+    const createdUsers = await User.create(users);
     console.log(`Created ${createdUsers.length} users`);
+
     return createdUsers;
   } catch (error) {
     console.error("Error seeding users:", error);
@@ -298,9 +300,8 @@ const seedSales = async (users, snacks) => {
 
     const customers = users.filter((user) => user.role === "customer");
     const salesCount = 50;
-    let createdSalesCount = 0;
+    let createdSalesCount = 0; // Generate random sales for the last 30 days
 
-    // Generate random sales for the last 30 days
     const today = new Date();
 
     console.log(`Creating ${salesCount} sales...`);
@@ -310,9 +311,8 @@ const seedSales = async (users, snacks) => {
         const customer =
           customers[Math.floor(Math.random() * customers.length)];
         const numItems = Math.floor(Math.random() * 4) + 1; // 1-4 items per sale
-        const saleItems = [];
+        const saleItems = []; // Random date in the last 30 days
 
-        // Random date in the last 30 days
         const saleDate = new Date(
           today.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000
         );
@@ -337,9 +337,8 @@ const seedSales = async (users, snacks) => {
 
           totalAmount += itemTotal;
           totalCost += (snack.costPrice || 0) * quantity;
-        }
+        } // Create sale with manually generated saleId
 
-        // Create sale with manually generated saleId
         const sale = new Sale({
           saleId: generateSaleId(),
           customer: customer._id,
@@ -361,15 +360,13 @@ const seedSales = async (users, snacks) => {
         });
 
         await sale.save();
-        createdSalesCount++;
+        createdSalesCount++; // Show progress every 10 sales
 
-        // Show progress every 10 sales
         if (createdSalesCount % 10 === 0) {
           console.log(`Created ${createdSalesCount}/${salesCount} sales...`);
         }
       } catch (error) {
-        console.error(`Error creating sale ${i + 1}:`, error.message);
-        // Continue with next sale
+        console.error(`Error creating sale ${i + 1}:`, error.message); // Continue with next sale
       }
     }
 
@@ -385,16 +382,13 @@ const seedDatabase = async () => {
   try {
     await connectDB();
 
-    console.log("🌱 Starting database seeding...");
+    console.log("🌱 Starting database seeding..."); // Seed users
 
-    // Seed users
     const users = await seedUsers();
-    const adminUser = users.find((user) => user.role === "admin");
+    const adminUser = users.find((user) => user.role === "admin"); // Seed snacks
 
-    // Seed snacks
-    const snacks = await seedSnacks(adminUser);
+    const snacks = await seedSnacks(adminUser); // Seed sales
 
-    // Seed sales
     const salesCount = await seedSales(users, snacks);
 
     console.log("✅ Database seeding completed successfully!");
@@ -402,12 +396,6 @@ const seedDatabase = async () => {
     console.log(`👥 Users: ${users.length}`);
     console.log(`🍿 Snacks: ${snacks.length}`);
     console.log(`💰 Sales: ${salesCount}`);
-    console.log("\n🔐 Login Credentials:");
-    console.log("Admin: admin@snackhub.com / admin123");
-    console.log("Customer: rahul@example.com / customer123");
-    console.log("Customer: priya@example.com / customer123");
-    console.log("Customer: amit@example.com / customer123");
-    console.log("Customer: sneha@example.com / customer123");
   } catch (error) {
     console.error("❌ Error seeding database:", error);
   } finally {

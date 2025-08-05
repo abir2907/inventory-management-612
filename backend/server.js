@@ -18,10 +18,19 @@ const salesRoutes = require("./routes/sales");
 const userRoutes = require("./routes/users");
 
 // Middleware
+// server.js
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: [
+      process.env.CLIENT_URL,
+      "http://127.0.0.1:5173",
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+    ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -31,7 +40,7 @@ app.use(express.urlencoded({ extended: true }));
 // Session configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your-secret-key",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
@@ -77,11 +86,22 @@ app.get("/api/health", (req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    message: "Something went wrong!",
-    error: process.env.NODE_ENV === "development" ? err.message : {},
+app.use((err, req, res, _next) => {
+  // Log the error in a safe way
+  console.error(err || "An unknown error occurred");
+
+  const statusCode = 500;
+  const message = "Something went wrong on the server!";
+
+  // Ensure we send a valid JSON response
+  res.status(statusCode).json({
+    success: false,
+    message: message,
+    // Only include stack in development for debugging
+    error:
+      process.env.NODE_ENV === "development" && err
+        ? err.toString()
+        : undefined,
   });
 });
 

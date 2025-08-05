@@ -1,6 +1,7 @@
 // routes/users.js
 const express = require("express");
-const { body, query, validationResult } = require("express-validator");
+const { body, validationResult } = require("express-validator");
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const Sale = require("../models/Sale");
 const auth = require("../middleware/auth");

@@ -1,6 +1,6 @@
 // routes/snacks.js - Updated import for alternative upload middleware
 const express = require("express");
-const { body, query, validationResult } = require("express-validator");
+const { body, validationResult } = require("express-validator");
 const QRCode = require("qrcode");
 const Snack = require("../models/Snack");
 const Sale = require("../models/Sale");
@@ -14,6 +14,156 @@ const {
 
 const router = express.Router();
 
+// @route   GET /api/snacks
+// @desc    Get all snacks with filtering and pagination
+// @access  Public
+router.get("/", async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search = "",
+      category = "",
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      isActive = "true",
+    } = req.query;
+
+    // Build query
+    let query = {};
+
+    // Search by name or description
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Filter by category
+    if (category) {
+      query.category = category;
+    }
+
+    // Filter by active status
+    if (isActive !== "") {
+      query.isActive = isActive === "true";
+    }
+
+    // Build sort object
+    const sortObj = {};
+    sortObj[sortBy] = sortOrder === "desc" ? -1 : 1;
+
+    // Execute query with pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [snacks, total] = await Promise.all([
+      Snack.find(query)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate("createdBy", "name")
+        .lean(),
+      Snack.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      data: snacks,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+        total,
+        limit: parseInt(limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get snacks error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
+// @route   GET /api/snacks/stats
+// @desc    Get inventory statistics
+// @access  Private (Admin)
+router.get("/stats", [auth, adminAuth], async (req, res) => {
+  try {
+    const stats = await Snack.getInventoryStats();
+    const lowStockItems = await Snack.getLowStockItems();
+    const outOfStockItems = await Snack.getOutOfStockItems();
+    const topSelling = await Snack.getTopSelling(10);
+
+    res.json({
+      success: true,
+      data: {
+        overall: stats,
+        lowStockCount: lowStockItems.length,
+        outOfStockCount: outOfStockItems.length,
+        lowStockItems,
+        outOfStockItems,
+        topSelling,
+      },
+    });
+  } catch (error) {
+    console.error("Get snack stats error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
+// @route   GET /api/snacks/low-stock
+// @desc    Get low stock items
+// @access  Private
+router.get("/low-stock", auth, async (req, res) => {
+  try {
+    const lowStockItems = await Snack.getLowStockItems();
+    res.json({
+      success: true,
+      data: lowStockItems,
+    });
+  } catch (error) {
+    console.error("Get low stock error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
+// @route   GET /api/snacks/:id
+// @desc    Get single snack
+// @access  Public
+router.get("/:id", async (req, res) => {
+  try {
+    const snack = await Snack.findById(req.params.id)
+      .populate("createdBy", "name")
+      .populate("reviews.user", "name avatar");
+
+    if (!snack || !snack.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: "Snack not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: snack,
+    });
+  } catch (error) {
+    console.error("Get snack error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
 // ... (keep all other routes the same until the POST route)
 
 // @route   POST /api/snacks
@@ -23,7 +173,7 @@ router.post(
   "/",
   [auth, adminAuth],
   upload.single("image"),
-  uploadToCloudinaryMiddleware, // Add this middleware after multer
+  uploadToCloudinaryMiddleware,
   [
     body("name").trim().isLength({ min: 1 }).withMessage("Name is required"),
     body("category")
@@ -220,5 +370,5 @@ router.put(
 );
 
 // ... (keep all other routes the same)
-
+router.use(handleUploadError);
 module.exports = router;
