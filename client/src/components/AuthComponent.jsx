@@ -16,7 +16,7 @@ const AuthComponent = () => {
   const { login, register, isLoading, error } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
