@@ -114,11 +114,19 @@ const AuthComponent = () => {
         }`}
       >
         <div className="text-center mb-8">
-          <div className="text-4xl mb-4">🍿</div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Snack Hub
-          </h1>
-          <p className={`mt-2 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+          <div className="text-4xl mb-4 flex justify-center">
+            <img
+              className="h-25 w-25 border-none rounded-lg"
+              src="logo.jpg"
+              alt="logo"
+            />
+          </div>
+
+          <p
+            className={`mt-2 text-center text-sm sm:text-base tracking-wide font-medium transition-opacity duration-300 ${
+              darkMode ? "text-gray-300" : "text-gray-600"
+            }`}
+          >
             Your Hostel Snack Inventory
           </p>
         </div>
