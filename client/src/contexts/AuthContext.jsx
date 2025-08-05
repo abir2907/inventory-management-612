@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError("");
 
-      const response = await api.post("/api/auth/login", credentials);
+      const response = await api.post("/auth/login", credentials);
 
       if (response.data.success) {
         const { token, user } = response.data;
