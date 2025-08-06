@@ -11,12 +11,16 @@ import {
   AlertCircle,
   Loader,
 } from "lucide-react";
+import { useEffect } from "react";
 
 const AuthComponent = () => {
   const { login, register, isLoading, error } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("darkMode");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -99,6 +103,10 @@ const AuthComponent = () => {
   };
 
   const displayError = localError || error;
+
+  useEffect(() => {
+    localStorage.setItem("darkMode", JSON.stringify(darkMode));
+  }, [darkMode]);
 
   return (
     <div
@@ -345,6 +353,21 @@ const AuthComponent = () => {
         >
           {darkMode ? <Sun size={20} /> : <Moon size={20} />}
         </button>
+
+        {isLoading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div
+              className={`p-6 rounded-lg ${
+                darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+              }`}
+            >
+              <div className="text-center">
+                <Loader className="animate-spin mx-auto mb-4" size={32} />
+                <p>Logging in...</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

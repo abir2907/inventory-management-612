@@ -32,7 +32,10 @@ import { snacksAPI, salesAPI } from "../services/api";
 
 const SnackInventoryApp = () => {
   const { user, logout, isLoading } = useAuth();
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("darkMode");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const [activeView, setActiveView] = useState("dashboard");
   const [cart, setCart] = useState([]);
   const [showLowStockModal, setShowLowStockModal] = useState(false);
@@ -64,6 +67,10 @@ const SnackInventoryApp = () => {
       }
     }
   }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem("darkMode", JSON.stringify(darkMode));
+  }, [darkMode]);
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -270,24 +277,33 @@ const SnackInventoryApp = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        {" "}
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
+        }`}
+      >
         <div className="text-center">
-          <div className="text-4xl mb-4">🍿</div> <p>Loading...</p>{" "}
-        </div>{" "}
+          <div className="text-4xl mb-4">🍿</div>
+          <p>Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
+    const savedDarkMode = localStorage.getItem("darkMode");
+    const isDark = savedDarkMode ? JSON.parse(savedDarkMode) : true;
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        {" "}
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
+        }`}
+      >
         <div className="text-center">
-          <div className="text-4xl mb-4">🍿</div>{" "}
-          <h1 className="text-2xl font-bold mb-4">Please Login</h1>{" "}
-          <p>You need to be logged in to access the snack inventory.</p>{" "}
-        </div>{" "}
+          <div className="text-4xl mb-4">🍿</div>
+          <h1 className="text-2xl font-bold mb-4">Please Login</h1>
+          <p>You need to be logged in to access the snack inventory.</p>
+        </div>
       </div>
     );
   }
