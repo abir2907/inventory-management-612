@@ -871,8 +871,21 @@ const SnackInventoryApp = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Shopping Cart</h2>
-              <div className="text-lg font-semibold">
-                Total: <span className="text-green-600">₹{cartTotal}</span>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setActiveView("shop")}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    darkMode
+                      ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  <ShoppingCart size={16} />
+                  Continue Shopping
+                </button>
+                <div className="text-lg font-semibold">
+                  Total: <span className="text-green-600">₹{cartTotal}</span>
+                </div>
               </div>
             </div>
 
