@@ -656,7 +656,7 @@ const SnackInventoryApp = () => {
             </div>
 
             {/* Snacks Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredSnacks.map((snack) => (
                 <div
                   key={snack._id}
@@ -790,7 +790,7 @@ const SnackInventoryApp = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredSnacks
                 .filter((snack) => snack.quantity > 0)
                 .map((snack) => (
@@ -1472,7 +1472,7 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
                   : "bg-white border-gray-300 text-gray-900"
               } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
               required
-              min="1"
+              min="0"
               placeholder="5"
             />
             <p
