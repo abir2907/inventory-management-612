@@ -140,8 +140,7 @@ const SnackInventoryApp = () => {
   });
 
   const lowStockItems = snacks.filter(
-    (snack) =>
-      snack.quantity <= (snack.lowStockAlert || 5) && snack.isActive !== false
+    (snack) => snack.quantity <= snack.lowStockAlert && snack.isActive !== false
   );
 
   const addToCart = (snack) => {
@@ -1268,7 +1267,7 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
     quantity: snack?.quantity || "",
     image: snack?.image || "🍿",
     description: snack?.description || "",
-    lowStockAlert: snack?.lowStockAlert || 5,
+    lowStockAlert: snack?.lowStockAlert ?? 5,
   });
 
   const handleSubmit = (e) => {
