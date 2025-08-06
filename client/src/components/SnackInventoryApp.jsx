@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast, { Toaster } from "react-hot-toast";
 import {
   ShoppingCart,
   Package,
@@ -192,10 +193,10 @@ const SnackInventoryApp = () => {
       await loadSalesHistory();
       await loadStats();
 
-      alert("Purchase completed successfully!");
+      toast.success("Purchase completed successfully!");
     } catch (error) {
       console.error("Checkout error:", error);
-      alert(error.message || "Failed to complete purchase. Please try again.");
+      toast.error(error.message || "Failed to complete purchase.");
     } finally {
       setLoading(false);
     }
@@ -214,10 +215,10 @@ const SnackInventoryApp = () => {
       await loadSnacks();
       await loadStats();
       setShowAddModal(false);
-      alert("Snack added successfully!");
+      toast.success("Snack added successfully!");
     } catch (error) {
       console.error("Error adding snack:", error);
-      alert(error.message || "Failed to add snack");
+      toast.error(error.message || "Failed to add snack");
     } finally {
       setLoading(false);
     }
@@ -230,10 +231,10 @@ const SnackInventoryApp = () => {
       await loadSnacks();
       await loadStats();
       setEditingSnack(null);
-      alert("Snack updated successfully!");
+      toast.success("Snack updated successfully!");
     } catch (error) {
       console.error("Error updating snack:", error);
-      alert(error.message || "Failed to update snack");
+      toast.error(error.message || "Failed to update snack");
     } finally {
       setLoading(false);
     }
@@ -244,13 +245,13 @@ const SnackInventoryApp = () => {
 
     try {
       setLoading(true);
-      await snacksAPI.deleteSnack(id);
+      const response = await snacksAPI.deleteSnack(id);
       await loadSnacks();
       await loadStats();
-      alert("Snack deleted successfully!");
+      toast.success(response.message || "Snack deleted successfully!");
     } catch (error) {
       console.error("Error deleting snack:", error);
-      alert(error.message || "Failed to delete snack");
+      toast.error(error.message || "Failed to delete snack");
     } finally {
       setLoading(false);
     }
@@ -299,6 +300,7 @@ const SnackInventoryApp = () => {
         darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
       }`}
     >
+      <Toaster position="top-center" reverseOrder={false} />
       {/* Header */}
       <header
         className={`${
@@ -637,10 +639,9 @@ const SnackInventoryApp = () => {
                   <option value="all">All Categories</option>
                   <option value="chips">Chips</option>
                   <option value="chocolate">Chocolate</option>
-                  <option value="drinks">Drinks</option>
                   <option value="cookies">Cookies</option>
-                  <option value="candy">Candy</option>
-                  <option value="healthy">Healthy</option>
+                  <option value="cake">Cake</option>
+                  <option value="noodles">Noodles</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -750,10 +751,9 @@ const SnackInventoryApp = () => {
                 "all",
                 "chips",
                 "chocolate",
-                "drinks",
                 "cookies",
-                "candy",
-                "healthy",
+                "cake",
+                "noodles",
                 "other",
               ].map((category) => (
                 <button
@@ -1338,10 +1338,9 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
             >
               <option value="chips">Chips</option>
               <option value="chocolate">Chocolate</option>
-              <option value="drinks">Drinks</option>
               <option value="cookies">Cookies</option>
-              <option value="candy">Candy</option>
-              <option value="healthy">Healthy</option>
+              <option value="cake">Cake</option>
+              <option value="noodles">Noodles</option>
               <option value="other">Other</option>
             </select>
           </div>
