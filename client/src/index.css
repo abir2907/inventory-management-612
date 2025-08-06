@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+/* Make all buttons and specific elements have a pointer cursor on hover */
+button,
+[role="button"],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Make all buttons slightly darker when they are actively being clicked */
+button:active {
+  filter: brightness(0.9);
+}
