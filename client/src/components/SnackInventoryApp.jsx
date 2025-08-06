@@ -217,7 +217,13 @@ const SnackInventoryApp = () => {
   const handleAddSnack = async (snackData) => {
     try {
       setLoading(true);
-      await snacksAPI.createSnack(snackData);
+      // Use FormData for multipart upload
+      const config = {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      };
+      await snacksAPI.createSnackWithImage(snackData, config);
       await loadSnacks();
       await loadStats();
       setShowAddModal(false);
@@ -233,7 +239,12 @@ const SnackInventoryApp = () => {
   const handleEditSnack = async (snackData) => {
     try {
       setLoading(true);
-      await snacksAPI.updateSnack(editingSnack._id, snackData);
+      const config = {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      };
+      await snacksAPI.updateSnackWithImage(editingSnack._id, snackData, config);
       await loadSnacks();
       await loadStats();
       setEditingSnack(null);
@@ -680,7 +691,17 @@ const SnackInventoryApp = () => {
                   } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105`}
                 >
                   <div className="text-center mb-4">
-                    <div className="text-4xl mb-2">{snack.image || "🍿"}</div>
+                    <div className="mb-2">
+                      {snack.imageUrl ? (
+                        <img
+                          src={snack.imageUrl}
+                          alt={snack.name}
+                          className="w-16 h-16 object-cover rounded-lg mx-auto"
+                        />
+                      ) : (
+                        <div className="text-4xl">{snack.image || "🍿"}</div>
+                      )}
+                    </div>
                     <h3 className="font-semibold text-lg">{snack.name}</h3>
                     <p
                       className={`text-sm ${
@@ -826,7 +847,18 @@ const SnackInventoryApp = () => {
                     )}
 
                     <div className="text-center mb-4">
-                      <div className="text-5xl mb-3">{snack.image || "🍿"}</div>
+                      {/* In shop view, use larger images */}
+                      <div className="mb-3">
+                        {snack.imageUrl ? (
+                          <img
+                            src={snack.imageUrl}
+                            alt={snack.name}
+                            className="w-20 h-20 object-cover rounded-lg mx-auto"
+                          />
+                        ) : (
+                          <div className="text-5xl">{snack.image || "🍿"}</div>
+                        )}
+                      </div>
                       <h3 className="font-bold text-xl mb-2">{snack.name}</h3>
                       <p
                         className={`text-sm ${
@@ -1268,16 +1300,31 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
     image: snack?.image || "🍿",
     description: snack?.description || "",
     lowStockAlert: snack?.lowStockAlert ?? 5,
+    imageUrl: snack?.imageUrl || "",
+    imageFile: null, // Add this
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({
-      ...formData,
-      price: Number(formData.price), // Convert string to number
-      quantity: Number(formData.quantity), // Convert string to number
-      lowStockAlert: Number(formData.lowStockAlert),
+    const submitData = new FormData();
+
+    // Add all form fields
+    Object.keys(formData).forEach((key) => {
+      if (key !== "imageFile") {
+        if (key === "price" || key === "quantity" || key === "lowStockAlert") {
+          submitData.append(key, Number(formData[key]));
+        } else {
+          submitData.append(key, formData[key]);
+        }
+      }
     });
+
+    // Add image file if exists
+    if (formData.imageFile) {
+      submitData.append("image", formData.imageFile);
+    }
+
+    onSave(submitData);
   };
 
   const emojiOptions = [
@@ -1440,6 +1487,42 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Photo Upload */}
+          <div>
+            <label
+              className={`block text-sm font-medium mb-2 ${
+                darkMode ? "text-gray-300" : "text-gray-700"
+              }`}
+            >
+              Photo Upload
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  setFormData({ ...formData, imageFile: file });
+                }
+              }}
+              className={`w-full px-3 py-2 rounded-lg border ${
+                darkMode
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "bg-white border-gray-300 text-gray-900"
+              } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            />
+            {formData.imageUrl && (
+              <div className="mt-2">
+                <img
+                  src={formData.imageUrl}
+                  alt="Current snack"
+                  className="w-20 h-20 object-cover rounded-lg"
+                />
+                <p className="text-xs mt-1">Current photo</p>
+              </div>
+            )}
           </div>
 
           {/* Description */}

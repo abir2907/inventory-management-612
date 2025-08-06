@@ -72,6 +72,10 @@ export const snacksAPI = {
   generateQRCode: (id) => API.get(`/snacks/${id}/qr`),
   getLowStock: () => API.get("/snacks/low-stock"),
   getStats: () => API.get("/snacks/stats"),
+  createSnackWithImage: (snackData, config) =>
+    API.post("/snacks", snackData, config),
+  updateSnackWithImage: (id, snackData, config) =>
+    API.put(`/snacks/${id}`, snackData, config),
 };
 
 // Sales API
