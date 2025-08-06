@@ -286,6 +286,14 @@ const SnackInventoryApp = () => {
   };
 
   if (isLoading) {
+    <style jsx>{`
+      .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+    `}</style>;
     return (
       <div
         className={`min-h-screen flex items-center justify-center ${
@@ -682,7 +690,7 @@ const SnackInventoryApp = () => {
             </div>
 
             {/* Snacks Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredSnacks.map((snack) => (
                 <div
                   key={snack._id}
@@ -691,39 +699,39 @@ const SnackInventoryApp = () => {
                   } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105`}
                 >
                   <div className="text-center mb-4">
-                    <div className="mb-2">
+                    <div className="mb-4 flex justify-center">
                       {snack.imageUrl ? (
                         <img
                           src={snack.imageUrl}
                           alt={snack.name}
-                          className="w-16 h-16 object-cover rounded-lg mx-auto"
+                          className="w-24 h-24 object-cover rounded-xl shadow-md"
                         />
                       ) : (
-                        <div className="text-4xl">{snack.image || "🍿"}</div>
+                        <div className="text-6xl">{snack.image || "🍿"}</div>
                       )}
                     </div>
-                    <h3 className="font-semibold text-lg">{snack.name}</h3>
+                    <h3 className="font-semibold text-xl mb-2">{snack.name}</h3>
                     <p
                       className={`text-sm ${
                         darkMode ? "text-gray-400" : "text-gray-600"
-                      } mb-2`}
+                      } mb-3 line-clamp-2`}
                     >
                       {snack.description}
                     </p>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-2xl font-bold text-green-600">
                         ₹{snack.price}
                       </span>
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
                           snack.quantity > (snack.lowStockAlert || 5)
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                             : snack.quantity > 0
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
                         }`}
                       >
                         {snack.quantity > 0
@@ -735,30 +743,31 @@ const SnackInventoryApp = () => {
                     <div
                       className={`text-sm ${
                         darkMode ? "text-gray-400" : "text-gray-600"
-                      }`}
+                      } flex justify-between`}
                     >
-                      Category: {snack.category} • Sold: {snack.sales || 0}
+                      <span>Category: {snack.category}</span>
+                      <span>Sold: {snack.sales || 0}</span>
                     </div>
 
                     {snack.quantity <= (snack.lowStockAlert || 5) &&
                       snack.quantity > 0 && (
-                        <div className="flex items-center text-yellow-600 text-sm">
-                          <AlertTriangle size={14} className="mr-1" />
+                        <div className="flex items-center justify-center text-yellow-600 text-sm bg-yellow-50 dark:bg-yellow-900/20 py-2 rounded-lg">
+                          <AlertTriangle size={14} className="mr-2" />
                           Low stock alert!
                         </div>
                       )}
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => setEditingSnack(snack)}
-                        className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
+                        className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center font-medium"
                       >
                         <Edit size={16} className="mr-2" />
                         Edit
                       </button>
                       <button
                         onClick={() => handleDeleteSnack(snack._id)}
-                        className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                        className="bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 transition-colors"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -826,7 +835,7 @@ const SnackInventoryApp = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredSnacks
                 .filter((snack) => snack.quantity > 0)
                 .map((snack) => (
@@ -836,7 +845,7 @@ const SnackInventoryApp = () => {
                       darkMode ? "bg-gray-800" : "bg-white"
                     } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 relative`}
                   >
-                    {/* Add to Cart Animation */}
+                    {/* Keep the animation overlay as is */}
                     {addToCartAnimation[snack._id] && (
                       <div className="absolute inset-0 bg-green-500 bg-opacity-20 rounded-xl flex items-center justify-center z-10 pointer-events-none animate-pulse">
                         <div className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center shadow-lg">
@@ -846,24 +855,25 @@ const SnackInventoryApp = () => {
                       </div>
                     )}
 
-                    <div className="text-center mb-4">
-                      {/* In shop view, use larger images */}
-                      <div className="mb-3">
+                    <div className="text-center">
+                      <div className="mb-4 flex justify-center">
                         {snack.imageUrl ? (
                           <img
                             src={snack.imageUrl}
                             alt={snack.name}
-                            className="w-20 h-20 object-cover rounded-lg mx-auto"
+                            className="w-28 h-28 object-cover rounded-xl shadow-lg"
                           />
                         ) : (
-                          <div className="text-5xl">{snack.image || "🍿"}</div>
+                          <div className="text-7xl mb-2">
+                            {snack.image || "🍿"}
+                          </div>
                         )}
                       </div>
-                      <h3 className="font-bold text-xl mb-2">{snack.name}</h3>
+                      <h3 className="font-bold text-xl mb-3">{snack.name}</h3>
                       <p
                         className={`text-sm ${
                           darkMode ? "text-gray-400" : "text-gray-600"
-                        } mb-3`}
+                        } mb-4 line-clamp-2`}
                       >
                         {snack.description}
                       </p>
@@ -876,8 +886,8 @@ const SnackInventoryApp = () => {
                           className={`px-3 py-1 rounded-full text-sm font-medium ${
                             getAvailableQuantity(snack) >
                             (snack.lowStockAlert || 5)
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
                           }`}
                         >
                           {getAvailableQuantity(snack)} left
@@ -886,8 +896,8 @@ const SnackInventoryApp = () => {
 
                       {getAvailableQuantity(snack) <=
                         (snack.lowStockAlert || 5) && (
-                        <div className="flex items-center justify-center text-orange-600 text-sm mb-3">
-                          <AlertTriangle size={14} className="mr-1" />
+                        <div className="flex items-center justify-center text-orange-600 text-sm mb-4 bg-orange-50 dark:bg-orange-900/20 py-2 rounded-lg">
+                          <AlertTriangle size={14} className="mr-2" />
                           Hurry! Limited stock
                         </div>
                       )}
