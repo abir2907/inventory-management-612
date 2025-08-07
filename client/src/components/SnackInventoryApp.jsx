@@ -939,14 +939,6 @@ const SnackInventoryApp = () => {
                       <span>Sold: {snack.sales || 0}</span>
                     </div>
 
-                    {snack.quantity <= (snack.lowStockAlert || 5) &&
-                      snack.quantity > 0 && (
-                        <div className="flex items-center justify-center text-yellow-600 text-sm bg-yellow-50 dark:bg-yellow-900/20 py-2 rounded-lg">
-                          <AlertTriangle size={14} className="mr-2" />
-                          Low stock alert!
-                        </div>
-                      )}
-
                     <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => setEditingSnack(snack)}
