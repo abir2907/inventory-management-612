@@ -177,7 +177,15 @@ router.post(
   [
     body("name").trim().isLength({ min: 1 }).withMessage("Name is required"),
     body("category")
-      .isIn(["chips", "chocolate", "cookies", "cake", "noodles", "other"])
+      .isIn([
+        "chips",
+        "chocolate",
+        "cookies",
+        "cake",
+        "noodles",
+        "namkeen",
+        "other",
+      ])
       .withMessage("Invalid category"),
     body("price")
       .isFloat({ min: 0 })
@@ -274,7 +282,15 @@ router.put(
       .withMessage("Name cannot be empty"),
     body("category")
       .optional()
-      .isIn(["chips", "chocolate", "cookies", "cake", "noodles", "other"])
+      .isIn([
+        "chips",
+        "chocolate",
+        "cookies",
+        "cake",
+        "noodles",
+        "namkeen",
+        "other",
+      ])
       .withMessage("Invalid category"),
     body("price")
       .optional()

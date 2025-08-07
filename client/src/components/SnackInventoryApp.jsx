@@ -449,15 +449,19 @@ const SnackInventoryApp = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="text-2xl mr-3">
-                <img className="h-10 w-10" src="logo.jpg" alt="logo" />
+              <div className="text-2xl mr-2 sm:mr-3">
+                <img
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl"
+                  src="logo.jpg"
+                  alt="logo"
+                />
               </div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Snack Hub
               </h1>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-1 sm:space-x-4">
               {user.role === "customer" && (
                 <button
                   onClick={() => setActiveView("cart")}
@@ -465,9 +469,9 @@ const SnackInventoryApp = () => {
                     darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
                   }`}
                 >
-                  <ShoppingCart size={20} />
+                  <ShoppingCart size={18} className="sm:w-5 sm:h-5" />
                   {cartItemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">
                       {cartItemCount}
                     </span>
                   )}
@@ -480,19 +484,28 @@ const SnackInventoryApp = () => {
                   darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
                 }`}
               >
-                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                {darkMode ? (
+                  <Sun size={18} className="sm:w-5 sm:h-5" />
+                ) : (
+                  <Moon size={18} className="sm:w-5 sm:h-5" />
+                )}
               </button>
 
-              <div className="flex items-center space-x-2">
-                <User size={20} />
-                <span className="text-sm font-medium">{user.name}</span>
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <User size={16} className="sm:w-5 sm:h-5" />
+                <span className="text-xs sm:text-sm font-medium hidden xs:block">
+                  {user.name}
+                </span>
+                <span className="text-xs sm:text-sm font-medium xs:hidden">
+                  {user.name.split(" ")[0]}
+                </span>
                 <button
                   onClick={handleLogout}
                   className={`p-2 rounded-lg ${
                     darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
                   } text-red-500`}
                 >
-                  <LogOut size={16} />
+                  <LogOut size={14} className="sm:w-4 sm:h-4" />
                 </button>
               </div>
             </div>
@@ -779,6 +792,7 @@ const SnackInventoryApp = () => {
                   <option value="cookies">Cookies</option>
                   <option value="cake">Cake</option>
                   <option value="noodles">Noodles</option>
+                  <option value="namkeen">Namkeen</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -799,7 +813,7 @@ const SnackInventoryApp = () => {
                   key={snack._id}
                   className={`${
                     darkMode ? "bg-gray-800" : "bg-white"
-                  } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105`}
+                  } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 relative`}
                 >
                   <div className="text-center mb-4">
                     <div className="mb-4 flex justify-center">
@@ -902,6 +916,7 @@ const SnackInventoryApp = () => {
                 "cookies",
                 "cake",
                 "noodles",
+                "namkeen",
                 "other",
               ].map((category) => (
                 <button
@@ -938,91 +953,127 @@ const SnackInventoryApp = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredSnacks
-                .filter((snack) => snack.quantity > 0)
-                .map((snack) => (
+            {(() => {
+              const availableSnacks = filteredSnacks.filter(
+                (snack) => snack.quantity > 0
+              );
+
+              if (availableSnacks.length === 0) {
+                return (
                   <div
-                    key={snack._id}
-                    className={`${
+                    className={`text-center py-16 ${
                       darkMode ? "bg-gray-800" : "bg-white"
-                    } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 relative`}
+                    } rounded-xl shadow-lg`}
                   >
-                    {/* Keep the animation overlay as is */}
-                    {addToCartAnimation[snack._id] && (
-                      <div className="absolute inset-0 bg-green-500 bg-opacity-20 rounded-xl flex items-center justify-center z-10 pointer-events-none animate-pulse">
-                        <div className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center shadow-lg">
-                          <CheckCircle size={20} className="mr-2" />
-                          Added to Cart!
-                        </div>
-                      </div>
-                    )}
+                    <Package
+                      size={64}
+                      className={`mx-auto mb-4 ${
+                        darkMode ? "text-gray-600" : "text-gray-400"
+                      }`}
+                    />
+                    <h3 className="text-xl font-semibold mb-2">
+                      No items available
+                    </h3>
+                    <p
+                      className={`${
+                        darkMode ? "text-gray-400" : "text-gray-600"
+                      }`}
+                    >
+                      {searchTerm || filterCategory !== "all"
+                        ? "Try adjusting your search or filter"
+                        : "Items are currently out of stock"}
+                    </p>
+                  </div>
+                );
+              }
 
-                    <div className="text-center">
-                      <div className="mb-4 flex justify-center">
-                        {snack.imageUrl ? (
-                          <img
-                            src={snack.imageUrl}
-                            alt={snack.name}
-                            className="w-28 h-28 object-cover rounded-xl shadow-lg"
-                          />
-                        ) : (
-                          <div className="text-7xl mb-2">
-                            {snack.image || "🍿"}
+              return (
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {availableSnacks.map((snack) => (
+                    <div
+                      key={snack._id}
+                      className={`${
+                        darkMode ? "bg-gray-800" : "bg-white"
+                      } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 relative`}
+                    >
+                      {/* Keep the animation overlay as is */}
+                      {addToCartAnimation[snack._id] && (
+                        <div className="absolute inset-0 bg-green-500 bg-opacity-20 rounded-xl flex items-center justify-center z-10 pointer-events-none animate-pulse">
+                          <div className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center shadow-lg">
+                            <CheckCircle size={20} className="mr-2" />
+                            Added to Cart!
                           </div>
-                        )}
-                      </div>
-                      <h3 className="font-bold text-xl mb-3">{snack.name}</h3>
-                      <p
-                        className={`text-sm ${
-                          darkMode ? "text-gray-400" : "text-gray-600"
-                        } mb-4 line-clamp-2`}
-                      >
-                        {snack.description}
-                      </p>
-
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-3xl font-bold text-green-600">
-                          ₹{snack.price}
-                        </span>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            getAvailableQuantity(snack) >
-                            (snack.lowStockAlert || 5)
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                          }`}
-                        >
-                          {getAvailableQuantity(snack)} left
-                        </span>
-                      </div>
-
-                      {getAvailableQuantity(snack) <=
-                        (snack.lowStockAlert || 5) && (
-                        <div className="flex items-center justify-center text-orange-600 text-sm mb-4 bg-orange-50 dark:bg-orange-900/20 py-2 rounded-lg">
-                          <AlertTriangle size={14} className="mr-2" />
-                          Hurry! Limited stock
                         </div>
                       )}
 
-                      <button
-                        onClick={() => addToCart(snack)}
-                        disabled={getAvailableQuantity(snack) === 0}
-                        className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center transition-all transform ${
-                          getAvailableQuantity(snack) === 0
-                            ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                            : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg"
-                        }`}
-                      >
-                        <ShoppingCart size={18} className="mr-2" />
-                        {getAvailableQuantity(snack) === 0
-                          ? "Out of Stock"
-                          : "Add to Cart"}
-                      </button>
+                      <div className="text-center">
+                        <div className="mb-4 flex justify-center">
+                          {snack.imageUrl ? (
+                            <img
+                              src={snack.imageUrl}
+                              alt={snack.name}
+                              className="w-28 h-28 object-cover rounded-xl shadow-lg"
+                            />
+                          ) : (
+                            <div className="text-7xl mb-2">
+                              {snack.image || "🍿"}
+                            </div>
+                          )}
+                        </div>
+                        <h3 className="font-bold text-xl mb-3">{snack.name}</h3>
+                        <p
+                          className={`text-sm ${
+                            darkMode ? "text-gray-400" : "text-gray-600"
+                          } mb-4 line-clamp-2`}
+                        >
+                          {snack.description}
+                        </p>
+
+                        <div className="flex justify-between items-center mb-4">
+                          <span className="text-3xl font-bold text-green-600">
+                            ₹{snack.price}
+                          </span>
+                          <span
+                            className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              getAvailableQuantity(snack) >
+                              (snack.lowStockAlert || 5)
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                            }`}
+                          >
+                            {getAvailableQuantity(snack)} left
+                          </span>
+                        </div>
+
+                        {getAvailableQuantity(snack) <= 2 && (
+                          <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-20 shadow-lg">
+                            <div className="flex items-center">
+                              <AlertTriangle size={10} className="mr-1" />
+                              Limited!
+                            </div>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => addToCart(snack)}
+                          disabled={getAvailableQuantity(snack) === 0}
+                          className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center transition-all transform ${
+                            getAvailableQuantity(snack) === 0
+                              ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                              : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg"
+                          }`}
+                        >
+                          <ShoppingCart size={18} className="mr-2" />
+                          {getAvailableQuantity(snack) === 0
+                            ? "Out of Stock"
+                            : "Add to Cart"}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-            </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -1108,20 +1159,26 @@ const SnackInventoryApp = () => {
                         </div>
 
                         <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center">
                             <button
                               onClick={() =>
                                 updateCartQuantity(item._id, item.quantity - 1)
                               }
-                              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                              className={`px-3 py-1 rounded-l-lg border font-semibold transition-colors ${
                                 darkMode
-                                  ? "border-gray-600 hover:bg-gray-700"
-                                  : "border-gray-300 hover:bg-gray-100"
+                                  ? "bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                                  : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
                               }`}
                             >
-                              -
+                              −
                             </button>
-                            <span className="w-8 text-center font-semibold">
+                            <span
+                              className={`px-4 py-1 border-t border-b font-semibold ${
+                                darkMode
+                                  ? "bg-gray-700 border-gray-600 text-white"
+                                  : "bg-white border-gray-300 text-gray-900"
+                              }`}
+                            >
                               {item.quantity}
                             </span>
                             <button
@@ -1135,10 +1192,10 @@ const SnackInventoryApp = () => {
                                   )
                                 )
                               }
-                              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                              className={`px-3 py-1 rounded-r-lg border font-semibold transition-colors ${
                                 darkMode
-                                  ? "border-gray-600 hover:bg-gray-700"
-                                  : "border-gray-300 hover:bg-gray-100"
+                                  ? "bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                                  : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
                               }`}
                             >
                               +
@@ -1597,18 +1654,7 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
     onSave(submitData);
   };
 
-  const emojiOptions = [
-    "🍟",
-    "🍫",
-    "🥤",
-    "🍪",
-    "🍿",
-    "🥨",
-    "🧀",
-    "🍕",
-    "🌭",
-    "🍔",
-  ];
+  const emojiOptions = ["🍜", "🍰", "🍟", "🍫", "🍪"];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1673,6 +1719,7 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
               <option value="cookies">Cookies</option>
               <option value="cake">Cake</option>
               <option value="noodles">Noodles</option>
+              <option value="namkeen">Namkeen</option>
               <option value="other">Other</option>
             </select>
           </div>
@@ -1712,21 +1759,58 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
               >
                 Quantity
               </label>
-              <input
-                type="number"
-                value={formData.quantity}
-                onChange={(e) =>
-                  setFormData({ ...formData, quantity: e.target.value })
-                }
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  darkMode
-                    ? "bg-gray-700 border-gray-600 text-white"
-                    : "bg-white border-gray-300 text-gray-900"
-                } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                required
-                min="0"
-                placeholder="0"
-              />
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      quantity: Math.max(
+                        0,
+                        (parseInt(formData.quantity) || 0) - 1
+                      ),
+                    })
+                  }
+                  className={`px-3 py-2 rounded-l-lg border font-semibold transition-colors ${
+                    darkMode
+                      ? "bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                      : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  -
+                </button>
+                <input
+                  type="text"
+                  value={formData.quantity}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, "");
+                    setFormData({ ...formData, quantity: value });
+                  }}
+                  className={`w-20 px-3 py-2 border-t border-b text-center ${
+                    darkMode
+                      ? "bg-gray-700 border-gray-600 text-white"
+                      : "bg-white border-gray-300 text-gray-900"
+                  } focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                  required
+                  placeholder="0"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      quantity: (parseInt(formData.quantity) || 0) + 1,
+                    })
+                  }
+                  className={`px-3 py-2 rounded-r-lg border font-semibold transition-colors ${
+                    darkMode
+                      ? "bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                      : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 
