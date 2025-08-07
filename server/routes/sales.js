@@ -18,28 +18,33 @@ router.get("/", auth, async (req, res) => {
     const {
       page = 1,
       limit = 20,
-      sortBy = "createdAt",
-      sortOrder = "desc",
+      search = "",
       status = "",
-      paymentStatus = "",
-      customer = "",
       startDate = "",
       endDate = "",
-      minAmount = "",
-      maxAmount = "",
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      customer = "",
     } = req.query;
 
     // Build query
     let query = {};
 
-    // For customers, only show their own sales
+    // For customers, they can only see their own sales
     if (req.user.role === "customer") {
       query.customer = req.user.id;
     }
-
-    // Filter by customer (admin only)
-    if (customer && req.user.role === "admin") {
+    // For admins, they can filter by customer if provided
+    else if (req.user.role === "admin" && customer) {
       query.customer = customer;
+    }
+
+    // Search by sale ID or customer name
+    if (search) {
+      query.$or = [
+        { saleId: { $regex: search, $options: "i" } },
+        { customerName: { $regex: search, $options: "i" } },
+      ];
     }
 
     // Filter by status
@@ -47,23 +52,11 @@ router.get("/", auth, async (req, res) => {
       query.status = status;
     }
 
-    // Filter by payment status
-    if (paymentStatus) {
-      query.paymentStatus = paymentStatus;
-    }
-
     // Date range filter
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
-    }
-
-    // Amount range filter
-    if (minAmount || maxAmount) {
-      query.totalAmount = {};
-      if (minAmount) query.totalAmount.$gte = parseFloat(minAmount);
-      if (maxAmount) query.totalAmount.$lte = parseFloat(maxAmount);
     }
 
     // Build sort object
@@ -78,7 +71,7 @@ router.get("/", auth, async (req, res) => {
         .sort(sortObj)
         .skip(skip)
         .limit(parseInt(limit))
-        .populate("customer", "name email avatar")
+        .populate("customer", "name email")
         .populate("items.snack", "name image category")
         .lean(),
       Sale.countDocuments(query),

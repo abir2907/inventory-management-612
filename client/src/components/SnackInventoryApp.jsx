@@ -28,7 +28,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { snacksAPI, salesAPI } from "../services/api";
+import { snacksAPI, salesAPI, usersAPI } from "../services/api";
 
 const SnackInventoryApp = () => {
   const { user, logout, isLoading } = useAuth();
@@ -36,6 +36,10 @@ const SnackInventoryApp = () => {
     const saved = localStorage.getItem("darkMode");
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [currentBill, setCurrentBill] = useState(null);
+  const [userPurchaseHistory, setUserPurchaseHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [showUPIModal, setShowUPIModal] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [cart, setCart] = useState([]);
@@ -63,6 +67,7 @@ const SnackInventoryApp = () => {
       loadInitialData();
       if (user.role === "customer") {
         setActiveView("shop");
+        loadUserPurchaseHistory();
       } else {
         setActiveView("dashboard");
       }
@@ -158,6 +163,42 @@ const SnackInventoryApp = () => {
     }
   };
 
+  const loadUserPurchaseHistory = async () => {
+    if (user?.role !== "customer") return;
+
+    try {
+      setHistoryLoading(true);
+      console.log("Loading purchase history for user:", user.id);
+
+      // Try the direct sales API first since the user routes might not be working
+      const response = await salesAPI.getSales({
+        limit: 50,
+        page: 1,
+        customer: user.id, // Add customer filter
+      });
+
+      console.log("Purchase history response:", response);
+      setUserPurchaseHistory(response.data || []);
+    } catch (error) {
+      console.error("Error loading purchase history:", error);
+
+      // Fallback: try the users API route
+      try {
+        const response = await usersAPI.getUserPurchaseHistory(user.id, {
+          limit: 50,
+          page: 1,
+        });
+        console.log("Fallback purchase history response:", response);
+        setUserPurchaseHistory(response.data?.purchases || []);
+      } catch (fallbackError) {
+        console.error("Fallback purchase history error:", fallbackError);
+        toast.error("Failed to load purchase history");
+      }
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const filteredSnacks = snacks.filter((snack) => {
     const matchesSearch = snack.name
       .toLowerCase()
@@ -243,19 +284,18 @@ const SnackInventoryApp = () => {
       const saleData = {
         items: cart.map((item) => ({
           snack: item._id,
-          quantity: parseInt(item.quantity), // Ensure it's a number
+          quantity: parseInt(item.quantity),
         })),
         paymentMethod: "upi",
         notes: `UPI Purchase by ${user.name || user.email || "Customer"}`,
         location: {
-          // Add location if available
           room: user.hostelRoom || "",
           hostel: user.hostel || "",
         },
       };
 
-      console.log("Sending sale data:", saleData); // Debug log
-      console.log("Current user:", user); // Debug log
+      console.log("Sending sale data:", saleData);
+      console.log("Current user:", user);
 
       // Validate that snack IDs are valid MongoDB ObjectIds
       const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
@@ -270,14 +310,41 @@ const SnackInventoryApp = () => {
       // Create sale
       const response = await salesAPI.createSale(saleData);
 
-      console.log("Sale response:", response); // Debug log
+      console.log("Sale response:", response);
 
-      // Clear cart and refresh data
+      // Create bill data for display
+      const billData = {
+        saleId:
+          response.data?.saleId || response.saleId || `BILL-${Date.now()}`,
+        items: cart.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.price * item.quantity,
+          image: item.image,
+        })),
+        totalAmount: cartTotal,
+        paymentMethod: "UPI",
+        customerName: user.name,
+        date: new Date().toLocaleString(),
+        status: "PAID",
+      };
+
+      // Show bill modal
+      setCurrentBill(billData);
+      setShowBillModal(true);
+
+      // Clear cart and close UPI modal
       setCart([]);
       setShowUPIModal(false);
 
       // Refresh data
-      await Promise.all([loadSnacks(), loadSalesHistory(), loadStats()]);
+      await Promise.all([
+        loadSnacks(),
+        loadSalesHistory(),
+        loadStats(),
+        loadUserPurchaseHistory(),
+      ]);
 
       toast.success("Payment completed successfully!");
     } catch (error) {
@@ -290,13 +357,11 @@ const SnackInventoryApp = () => {
         user: user,
       });
 
-      // More detailed error handling
       let errorMessage = "Failed to complete payment.";
 
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.errors) {
-        // Handle validation errors
         const validationErrors = error.response.data.errors
           .map((err) => err.msg)
           .join(", ");
@@ -462,22 +527,6 @@ const SnackInventoryApp = () => {
             </div>
 
             <div className="flex items-center space-x-1 sm:space-x-4">
-              {user.role === "customer" && (
-                <button
-                  onClick={() => setActiveView("cart")}
-                  className={`relative p-2 rounded-lg ${
-                    darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
-                  }`}
-                >
-                  <ShoppingCart size={18} className="sm:w-5 sm:h-5" />
-                  {cartItemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">
-                      {cartItemCount}
-                    </span>
-                  )}
-                </button>
-              )}
-
               <button
                 onClick={() => setDarkMode(!darkMode)}
                 className={`p-2 rounded-lg ${
@@ -537,43 +586,58 @@ const SnackInventoryApp = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Navigation */}
-        {user.role === "admin" && (
-          <nav className="mb-8">
-            <div className="flex flex-wrap gap-2">
-              {[
-                ...(user.role === "admin"
-                  ? [
-                      { key: "dashboard", label: "Dashboard", icon: BarChart3 },
-                      { key: "inventory", label: "Inventory", icon: Package },
-                      {
-                        key: "sales",
-                        label: "Sales History",
-                        icon: TrendingUp,
-                      },
-                    ]
-                  : []),
-                ...(user.role === "customer"
-                  ? [{ key: "shop", label: "Shop", icon: ShoppingCart }]
-                  : []),
-              ].map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveView(key)}
-                  className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
-                    activeView === key
-                      ? "bg-blue-600 text-white shadow-lg"
-                      : darkMode
-                      ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                      : "bg-white text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  <Icon size={16} className="mr-2" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </nav>
-        )}
+        <nav className="mb-8">
+          <div className="flex flex-wrap gap-2">
+            {user.role === "admin"
+              ? [
+                  { key: "dashboard", label: "Dashboard", icon: BarChart3 },
+                  { key: "inventory", label: "Inventory", icon: Package },
+                  { key: "sales", label: "Sales History", icon: TrendingUp },
+                ].map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveView(key)}
+                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
+                      activeView === key
+                        ? "bg-blue-600 text-white shadow-lg"
+                        : darkMode
+                        ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                        : "bg-white text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Icon size={16} className="mr-2" />
+                    {label}
+                  </button>
+                ))
+              : [
+                  { key: "shop", label: "Shop", icon: ShoppingCart },
+                  { key: "cart", label: "Cart", icon: ShoppingCart },
+                  { key: "history", label: "Purchase History", icon: Clock },
+                ].map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveView(key)}
+                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all relative ${
+                      activeView === key
+                        ? "bg-blue-600 text-white shadow-lg"
+                        : darkMode
+                        ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                        : "bg-white text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Icon size={16} className="mr-2" />
+                    {key === "cart"
+                      ? `Cart${cartItemCount > 0 ? ` (${cartItemCount})` : ""}`
+                      : label}
+                    {key === "cart" && cartItemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center text-[10px]">
+                        {cartItemCount}
+                      </span>
+                    )}
+                  </button>
+                ))}
+          </div>
+        </nav>
 
         {/* Dashboard View */}
         {activeView === "dashboard" && user.role === "admin" && (
@@ -1170,7 +1234,7 @@ const SnackInventoryApp = () => {
                                   : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
                               }`}
                             >
-                              −
+                              -
                             </button>
                             <span
                               className={`px-4 py-1 border-t border-b font-semibold ${
@@ -1367,6 +1431,178 @@ const SnackInventoryApp = () => {
             </div>
           </div>
         )}
+
+        {/* Purchase History View (Customer only) */}
+        {activeView === "history" && user.role === "customer" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Purchase History</h2>
+              <button
+                onClick={loadUserPurchaseHistory}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  darkMode
+                    ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+                disabled={historyLoading}
+              >
+                {historyLoading ? "Loading..." : "Refresh"}
+              </button>
+            </div>
+
+            {historyLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2">Loading your purchase history...</p>
+              </div>
+            ) : userPurchaseHistory.length === 0 ? (
+              <div
+                className={`text-center py-12 ${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-lg`}
+              >
+                <ShoppingCart
+                  size={64}
+                  className={`mx-auto mb-4 ${
+                    darkMode ? "text-gray-600" : "text-gray-400"
+                  }`}
+                />
+                <h3 className="text-xl font-semibold mb-2">No purchases yet</h3>
+                <p
+                  className={`${
+                    darkMode ? "text-gray-400" : "text-gray-600"
+                  } mb-4`}
+                >
+                  Start shopping to see your purchase history here
+                </p>
+                <button
+                  onClick={() => setActiveView("shop")}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Start Shopping
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {userPurchaseHistory.map((purchase) => (
+                  <div
+                    key={purchase._id}
+                    className={`${
+                      darkMode ? "bg-gray-800" : "bg-white"
+                    } rounded-xl shadow-lg p-6`}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-lg">
+                            Order #{purchase.saleId || purchase._id?.slice(-6)}
+                          </h3>
+                          <span
+                            className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              purchase.status === "completed" ||
+                              purchase.status === "confirmed"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                                : purchase.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                                : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+                            }`}
+                          >
+                            {purchase.status === "completed" ||
+                            purchase.status === "confirmed"
+                              ? "✓ CONFIRMED"
+                              : purchase.status?.toUpperCase() || "CONFIRMED"}
+                          </span>
+                        </div>
+                        <p
+                          className={`text-sm ${
+                            darkMode ? "text-gray-400" : "text-gray-600"
+                          }`}
+                        >
+                          {new Date(purchase.createdAt).toLocaleDateString()} at{" "}
+                          {new Date(purchase.createdAt).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-green-600">
+                          ₹{purchase.totalAmount}
+                        </p>
+                        <p
+                          className={`text-sm ${
+                            darkMode ? "text-gray-400" : "text-gray-600"
+                          }`}
+                        >
+                          {purchase.paymentMethod?.toUpperCase() || "UPI"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-medium">Items Purchased:</h4>
+                      {purchase.items?.map((item, index) => (
+                        <div
+                          key={index}
+                          className={`flex items-center justify-between p-3 rounded-lg ${
+                            darkMode ? "bg-gray-700" : "bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <span className="text-2xl mr-3">
+                              {item.snackImage || item.snack?.image || "🍿"}
+                            </span>
+                            <div>
+                              <p className="font-medium">
+                                {item.snackName ||
+                                  item.snack?.name ||
+                                  "Unknown Item"}
+                              </p>
+                              <p
+                                className={`text-sm ${
+                                  darkMode ? "text-gray-400" : "text-gray-600"
+                                }`}
+                              >
+                                ₹{item.unitPrice} × {item.quantity}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">₹{item.totalPrice}</p>
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full ${
+                                darkMode
+                                  ? "bg-blue-900 text-blue-300"
+                                  : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
+                              Qty: {item.quantity}
+                            </span>
+                          </div>
+                        </div>
+                      )) || (
+                        <p className="text-gray-500 text-sm">No items found</p>
+                      )}
+                    </div>
+
+                    {purchase.notes && (
+                      <div
+                        className={`mt-4 p-3 rounded-lg ${
+                          darkMode ? "bg-gray-700" : "bg-gray-50"
+                        }`}
+                      >
+                        <p
+                          className={`text-sm ${
+                            darkMode ? "text-gray-400" : "text-gray-600"
+                          }`}
+                        >
+                          <strong>Note:</strong> {purchase.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Low Stock Modal */}
@@ -1457,6 +1693,7 @@ const SnackInventoryApp = () => {
           darkMode={darkMode}
         />
       )}
+
       {/* UPI Payment Modal */}
       {showUPIModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1610,6 +1847,128 @@ const SnackInventoryApp = () => {
               }`}
             >
               Click "Payment Completed" after successful UPI payment
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Bill/Receipt Modal */}
+      {showBillModal && currentBill && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div
+            className={`${
+              darkMode ? "bg-gray-800" : "bg-white"
+            } rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto`}
+          >
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-2">🧾</div>
+              <h3 className="text-2xl font-bold mb-1">Payment Successful!</h3>
+              <p className="text-green-600 font-semibold">✓ PAID</p>
+            </div>
+
+            {/* Bill Details */}
+            <div
+              className={`border rounded-lg p-4 mb-6 ${
+                darkMode ? "border-gray-600" : "border-gray-300"
+              }`}
+            >
+              <div className="text-center mb-4">
+                <h4 className="text-lg font-bold">🍿 Snack Hub</h4>
+                <p className="text-sm opacity-75">Digital Receipt</p>
+              </div>
+
+              <div className="space-y-2 text-sm mb-4">
+                <div className="flex justify-between">
+                  <span>Bill ID:</span>
+                  <span className="font-mono">{currentBill.saleId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Customer:</span>
+                  <span>{currentBill.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Date:</span>
+                  <span>{currentBill.date}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Payment:</span>
+                  <span>{currentBill.paymentMethod}</span>
+                </div>
+              </div>
+
+              <div
+                className={`border-t pt-4 ${
+                  darkMode ? "border-gray-600" : "border-gray-300"
+                }`}
+              >
+                <h5 className="font-semibold mb-3">Items Purchased:</h5>
+                <div className="space-y-2">
+                  {currentBill.items.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center flex-1">
+                        <span className="text-lg mr-2">{item.image}</span>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{item.name}</p>
+                          <p className="text-xs opacity-75">
+                            ₹{item.price} × {item.quantity}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">₹{item.total}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                className={`border-t pt-4 mt-4 ${
+                  darkMode ? "border-gray-600" : "border-gray-300"
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold">Total Paid:</span>
+                  <span className="text-xl font-bold text-green-600">
+                    ₹{currentBill.totalAmount}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowBillModal(false);
+                  setCurrentBill(null);
+                  setActiveView("history");
+                }}
+                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                  darkMode
+                    ? "bg-gray-700 text-white hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                }`}
+              >
+                View History
+              </button>
+              <button
+                onClick={() => {
+                  setShowBillModal(false);
+                  setCurrentBill(null);
+                  setActiveView("shop");
+                }}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                Continue Shopping
+              </button>
+            </div>
+
+            <p className={`text-xs text-center mt-4 opacity-75`}>
+              Thank you for shopping with Snack Hub! 🍿
             </p>
           </div>
         </div>
