@@ -793,7 +793,7 @@ const SnackInventoryApp = () => {
             </div>
 
             {/* Snacks Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredSnacks.map((snack) => (
                 <div
                   key={snack._id}
@@ -938,7 +938,7 @@ const SnackInventoryApp = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredSnacks
                 .filter((snack) => snack.quantity > 0)
                 .map((snack) => (
