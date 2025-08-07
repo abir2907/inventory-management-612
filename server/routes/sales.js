@@ -105,50 +105,203 @@ router.get("/", auth, async (req, res) => {
 
 // @route   GET /api/sales/stats
 // @desc    Get sales statistics
-// @access  Private (Admin)
+// @access  Private
 router.get("/stats", [auth, adminAuth], async (req, res) => {
   try {
-    const { startDate, endDate, period = "month" } = req.query;
+    console.log("=== Sales Stats Route (Direct Method) ===");
 
-    // Get overall stats
-    const overallStats = await Sale.getSalesStats(startDate, endDate);
+    // Test basic connection
+    const testCount = await Sale.countDocuments({});
+    console.log("Total sales in DB:", testCount);
 
-    // Get daily sales for the last 30 days
-    const dailySales = await Sale.getDailySales(30);
+    if (testCount === 0) {
+      return res.json({
+        success: true,
+        data: {
+          overall: {
+            totalSales: 0,
+            totalRevenue: 0,
+            totalProfit: 0,
+            totalItems: 0,
+            todaysSales: 0,
+            todaysRevenue: 0,
+            averageOrderValue: 0,
+          },
+        },
+      });
+    }
 
-    // Get top customers
-    const topCustomers = await Sale.getTopCustomers(10);
+    // Get all active sales (not cancelled)
+    console.log("Fetching all active sales...");
+    const allSales = await Sale.find({ status: { $ne: "cancelled" } }).lean();
+    console.log("Found active sales:", allSales.length);
 
-    // Get product performance
-    const productPerformance = await Sale.getProductPerformance();
+    // Calculate totals manually
+    let totalRevenue = 0;
+    let totalItems = 0;
 
-    // Get monthly revenue for current year
-    const currentYear = new Date().getFullYear();
-    const monthlyRevenue = await Sale.getMonthlyRevenue(currentYear);
+    for (const sale of allSales) {
+      // Add to total revenue
+      totalRevenue += sale.totalAmount || 0;
 
-    // Get recent sales
-    const recentSales = await Sale.find({ status: { $ne: "cancelled" } })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .populate("customer", "name")
-      .select("saleId customerName totalAmount createdAt status");
+      // Count total items
+      if (sale.items && Array.isArray(sale.items)) {
+        for (const item of sale.items) {
+          totalItems += item.quantity || 0;
+        }
+      }
+    }
+
+    // Calculate today's sales
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    console.log("Calculating today's sales between:", { today, tomorrow });
+
+    const todaysSales = await Sale.find({
+      createdAt: { $gte: today, $lt: tomorrow },
+      status: { $ne: "cancelled" },
+    }).lean();
+
+    console.log("Today's sales found:", todaysSales.length);
+
+    let todaysRevenue = 0;
+    for (const sale of todaysSales) {
+      todaysRevenue += sale.totalAmount || 0;
+    }
+
+    // Build final response
+    const overallStats = {
+      totalSales: allSales.length, // Number of sales
+      totalRevenue: totalRevenue, // Total money earned
+      totalProfit: totalRevenue, // Since no cost, profit = revenue
+      totalItems: totalItems, // Total items sold across all sales
+      averageOrderValue:
+        allSales.length > 0 ? totalRevenue / allSales.length : 0,
+      todaysSales: todaysSales.length, // Number of sales today
+      todaysRevenue: todaysRevenue, // Money earned today
+    };
+
+    console.log("Final stats calculated:", overallStats);
 
     res.json({
       success: true,
       data: {
         overall: overallStats,
-        daily: dailySales,
-        monthly: monthlyRevenue,
-        topCustomers,
-        productPerformance: productPerformance.slice(0, 10),
-        recent: recentSales,
       },
     });
   } catch (error) {
-    console.error("Get sales stats error:", error);
+    console.error("Sales stats route error:", error.message);
+    console.error("Error stack:", error.stack);
+
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: `Server error: ${error.message}`,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+});
+
+// Add this simple test route to routes/sales.js to verify your data:
+
+// @route   GET /api/sales/test-data
+// @desc    Test sales data retrieval
+// @access  Private (Admin)
+router.get("/test-data", [auth, adminAuth], async (req, res) => {
+  try {
+    console.log("=== Testing Sales Data ===");
+
+    // Test 1: Count documents
+    const totalCount = await Sale.countDocuments({});
+    console.log("Total sales count:", totalCount);
+
+    // Test 2: Count active sales
+    const activeCount = await Sale.countDocuments({
+      status: { $ne: "cancelled" },
+    });
+    console.log("Active sales count:", activeCount);
+
+    // Test 3: Get first 3 sales with full data
+    const sampleSales = await Sale.find({})
+      .limit(3)
+      .select("saleId status totalAmount items createdAt customerName")
+      .lean();
+
+    console.log("Sample sales:", JSON.stringify(sampleSales, null, 2));
+
+    // Test 4: Manual calculation
+    let manualTotal = 0;
+    let manualItems = 0;
+
+    const allSales = await Sale.find({ status: { $ne: "cancelled" } })
+      .select("totalAmount items")
+      .lean();
+
+    allSales.forEach((sale) => {
+      manualTotal += sale.totalAmount || 0;
+      if (sale.items && Array.isArray(sale.items)) {
+        manualItems += sale.items.reduce(
+          (sum, item) => sum + (item.quantity || 0),
+          0
+        );
+      }
+    });
+
+    console.log("Manual calculations:", {
+      totalRevenue: manualTotal,
+      totalItems: manualItems,
+      salesCount: allSales.length,
+    });
+
+    // Test 5: Today's sales
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todaysSales = await Sale.find({
+      createdAt: { $gte: today, $lt: tomorrow },
+      status: { $ne: "cancelled" },
+    })
+      .select("totalAmount")
+      .lean();
+
+    const todaysRevenue = todaysSales.reduce(
+      (sum, sale) => sum + (sale.totalAmount || 0),
+      0
+    );
+
+    console.log("Today's data:", {
+      count: todaysSales.length,
+      revenue: todaysRevenue,
+      dateRange: { today, tomorrow },
+    });
+
+    res.json({
+      success: true,
+      test_results: {
+        totalCount,
+        activeCount,
+        sampleSales,
+        manualCalculations: {
+          totalRevenue: manualTotal,
+          totalItems: manualItems,
+          salesCount: allSales.length,
+        },
+        todaysStats: {
+          count: todaysSales.length,
+          revenue: todaysRevenue,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Test data error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      stack: error.stack,
     });
   }
 });

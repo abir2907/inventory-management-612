@@ -113,7 +113,17 @@ const SnackInventoryApp = () => {
     try {
       // Fetch snack stats for ALL users
       const snackStats = await snacksAPI.getStats();
-      let salesStats = { data: { overall: { totalRevenue: 0 } } }; // Default sales stats
+
+      let salesStats = {
+        data: {
+          overall: {
+            totalRevenue: 0,
+            totalSales: 0,
+            todaysRevenue: 0,
+            totalItems: 0,
+          },
+        },
+      }; // Default sales stats
 
       // Fetch sales stats ONLY for admins
       if (user?.role === "admin") {
@@ -121,10 +131,10 @@ const SnackInventoryApp = () => {
       }
 
       setStats({
-        totalItems: snackStats.data?.overall?.totalQuantity || 0,
+        totalItems: salesStats.data?.overall?.totalItems || 0, // Changed from snackStats
         lowStockItems: snackStats.data?.lowStockCount || 0,
-        totalSales: salesStats.data?.overall?.totalRevenue || 0,
-        todaySales: 0, // This field doesn't exist in the API
+        totalSales: salesStats.data?.overall?.totalSales || 0, // Changed from totalRevenue
+        todaySales: salesStats.data?.overall?.todaysSales || 0, // Changed field name
       });
     } catch (error) {
       console.error("Error loading stats:", error);
