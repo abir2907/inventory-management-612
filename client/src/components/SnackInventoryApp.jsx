@@ -879,6 +879,15 @@ const SnackInventoryApp = () => {
                     darkMode ? "bg-gray-800" : "bg-white"
                   } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 relative`}
                 >
+                  {/*  LOW STOCK RIBBON */}
+                  {snack.quantity <= 2 && (
+                    <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-20 shadow-lg">
+                      <div className="flex items-center">
+                        <AlertTriangle size={10} className="mr-1" />
+                        Low Stock
+                      </div>
+                    </div>
+                  )}
                   <div className="text-center mb-4">
                     <div className="mb-4 flex justify-center">
                       {snack.imageUrl ? (
@@ -1498,7 +1507,7 @@ const SnackInventoryApp = () => {
                             Order #{purchase.saleId || purchase._id?.slice(-6)}
                           </h3>
                           <span
-                            className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            className={`px-2 py-1 rounded-full text-xs font-medium inline-flex items-center whitespace-nowrap ${
                               purchase.status === "completed" ||
                               purchase.status === "confirmed"
                                 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
@@ -1509,8 +1518,8 @@ const SnackInventoryApp = () => {
                           >
                             {purchase.status === "completed" ||
                             purchase.status === "confirmed"
-                              ? "✓ CONFIRMED"
-                              : purchase.status?.toUpperCase() || "CONFIRMED"}
+                              ? "✓ PAID"
+                              : purchase.status?.toUpperCase() || "PAID"}
                           </span>
                         </div>
                         <p
