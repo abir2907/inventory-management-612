@@ -3,7 +3,7 @@ import axios from "axios";
 // Create axios instance with base configuration
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
-  timeout: 10000,
+  timeout: 30000, // Increased timeout
   headers: {
     "Content-Type": "application/json",
   },
@@ -17,6 +17,15 @@ API.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Log request for debugging
+    console.log("API Request:", {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      headers: config.headers,
+      data: config.data,
+    });
+
     return config;
   },
   (error) => {
@@ -28,26 +37,54 @@ API.interceptors.request.use(
 // Response interceptor to handle errors
 API.interceptors.response.use(
   (response) => {
+    // Log successful response for debugging
+    console.log("API Response:", {
+      status: response.status,
+      url: response.config.url,
+      data: response.data,
+    });
+
     return response.data;
   },
   (error) => {
-    console.error(
-      "API Error:",
-      error.response?.status,
-      error.response?.data,
-      error.message
-    );
+    // Enhanced error logging
+    console.error("API Error Details:", {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      method: error.config?.method,
+      data: error.response?.data,
+      message: error.message,
+      headers: error.response?.headers,
+    });
 
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      // Don't redirect automatically, let the app handle it
+      // Redirect to login if needed
+      window.location.href = "/login";
     }
 
-    // Return a more detailed error
-    const errorMessage =
-      error.response?.data?.message || error.message || "Network error";
-    return Promise.reject(new Error(errorMessage));
+    // Create a more descriptive error
+    let errorMessage = "Network error occurred";
+
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    } else if (error.response?.data?.errors) {
+      errorMessage = error.response.data.errors
+        .map((err) => err.msg || err.message || err)
+        .join(", ");
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    // Preserve the original error response for detailed handling
+    const customError = new Error(errorMessage);
+    customError.response = error.response;
+    customError.status = error.response?.status;
+    customError.originalError = error;
+
+    return Promise.reject(customError);
   }
 );
 
@@ -78,11 +115,21 @@ export const snacksAPI = {
     API.put(`/snacks/${id}`, snackData, config),
 };
 
-// Sales API
+// Sales API with additional debugging
 export const salesAPI = {
   getSales: (params) => API.get("/sales", { params }),
   getSale: (id) => API.get(`/sales/${id}`),
-  createSale: (saleData) => API.post("/sales", saleData),
+  createSale: async (saleData) => {
+    try {
+      console.log("Creating sale with data:", saleData);
+      const response = await API.post("/sales", saleData);
+      console.log("Sale created successfully:", response);
+      return response;
+    } catch (error) {
+      console.error("Sale creation failed:", error);
+      throw error;
+    }
+  },
   updateSaleStatus: (id, statusData) =>
     API.put(`/sales/${id}/status`, statusData),
   getSalesStats: (params) => API.get("/sales/stats", { params }),

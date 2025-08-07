@@ -36,6 +36,7 @@ const SnackInventoryApp = () => {
     const saved = localStorage.getItem("darkMode");
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const [showUPIModal, setShowUPIModal] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [cart, setCart] = useState([]);
   const [showLowStockModal, setShowLowStockModal] = useState(false);
@@ -181,28 +182,103 @@ const SnackInventoryApp = () => {
     if (cart.length === 0) return;
 
     try {
-      setLoading(true); // Prepare sale data
+      setLoading(true);
 
+      // Show UPI payment modal
+      setShowUPIModal(true);
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error(error.message || "Failed to initiate checkout.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completePayment = async () => {
+    try {
+      setLoading(true);
+
+      // Validate cart before proceeding
+      if (!cart || cart.length === 0) {
+        throw new Error("Cart is empty");
+      }
+
+      // Check if all cart items are still valid
+      const invalidItems = cart.filter(
+        (item) => !item._id || !item.quantity || item.quantity <= 0
+      );
+
+      if (invalidItems.length > 0) {
+        throw new Error("Invalid items in cart");
+      }
+
+      // Prepare sale data with proper validation
       const saleData = {
         items: cart.map((item) => ({
           snack: item._id,
-          quantity: item.quantity,
+          quantity: parseInt(item.quantity), // Ensure it's a number
         })),
-        paymentMethod: "cash",
-        notes: `Purchase by ${user.name}`,
-      }; // Create sale
+        paymentMethod: "upi",
+        notes: `UPI Purchase by ${user.name || user.email || "Customer"}`,
+        location: {
+          // Add location if available
+          room: user.hostelRoom || "",
+          hostel: user.hostel || "",
+        },
+      };
 
-      await salesAPI.createSale(saleData); // Clear cart and refresh data
+      console.log("Sending sale data:", saleData); // Debug log
+      console.log("Current user:", user); // Debug log
 
+      // Validate that snack IDs are valid MongoDB ObjectIds
+      const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
+      const invalidSnackIds = saleData.items.filter(
+        (item) => !isValidObjectId(item.snack)
+      );
+
+      if (invalidSnackIds.length > 0) {
+        throw new Error("Invalid snack IDs in cart");
+      }
+
+      // Create sale
+      const response = await salesAPI.createSale(saleData);
+
+      console.log("Sale response:", response); // Debug log
+
+      // Clear cart and refresh data
       setCart([]);
-      await loadSnacks();
-      await loadSalesHistory();
-      await loadStats();
+      setShowUPIModal(false);
 
-      toast.success("Purchase completed successfully!");
+      // Refresh data
+      await Promise.all([loadSnacks(), loadSalesHistory(), loadStats()]);
+
+      toast.success("Payment completed successfully!");
     } catch (error) {
-      console.error("Checkout error:", error);
-      toast.error(error.message || "Failed to complete purchase.");
+      console.error("Payment completion error:", error);
+      console.error("Error details:", {
+        response: error.response,
+        request: error.request,
+        message: error.message,
+        cart: cart,
+        user: user,
+      });
+
+      // More detailed error handling
+      let errorMessage = "Failed to complete payment.";
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        // Handle validation errors
+        const validationErrors = error.response.data.errors
+          .map((err) => err.msg)
+          .join(", ");
+        errorMessage = `Validation failed: ${validationErrors}`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -1088,7 +1164,7 @@ const SnackInventoryApp = () => {
                       className="flex-2 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-8 rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg flex items-center justify-center disabled:opacity-50"
                     >
                       <CreditCard size={20} className="mr-2" />
-                      {loading ? "Processing..." : "Checkout"}
+                      {loading ? "Processing..." : "Pay with UPI"}
                     </button>
                   </div>
                 </div>
@@ -1296,6 +1372,158 @@ const SnackInventoryApp = () => {
           }}
           darkMode={darkMode}
         />
+      )}
+      {/* UPI Payment Modal */}
+      {showUPIModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div
+            className={`${
+              darkMode ? "bg-gray-800" : "bg-white"
+            } rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold flex items-center">
+                <QrCode className="text-blue-500 mr-2" size={24} />
+                UPI Payment
+              </h3>
+              <button
+                onClick={() => setShowUPIModal(false)}
+                className={`p-2 rounded-lg ${
+                  darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Order Summary */}
+            <div
+              className={`p-4 rounded-lg mb-4 ${
+                darkMode ? "bg-gray-700" : "bg-gray-50"
+              }`}
+            >
+              <h4 className="font-semibold mb-2">Order Summary</h4>
+              <div className="space-y-2">
+                {cart.map((item) => (
+                  <div key={item._id} className="flex justify-between text-sm">
+                    <span>
+                      {item.name} x{item.quantity}
+                    </span>
+                    <span>₹{item.price * item.quantity}</span>
+                  </div>
+                ))}
+                <div className="border-t pt-2 mt-2 font-semibold">
+                  <div className="flex justify-between">
+                    <span>Total Amount:</span>
+                    <span className="text-green-600">₹{cartTotal}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* UPI QR Code */}
+            <div className="text-center mb-4">
+              <p
+                className={`text-sm mb-3 ${
+                  darkMode ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
+                Scan the QR code below to pay ₹{cartTotal}
+              </p>
+              <div className="flex justify-center">
+                <div
+                  className={`p-4 rounded-lg border-2 border-dashed ${
+                    darkMode
+                      ? "border-gray-600 bg-gray-700"
+                      : "border-gray-300 bg-gray-50"
+                  }`}
+                >
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=abirchodha1@okhdfcbank&pn=Snack Hub&am=${cartTotal}&cu=INR&tn=Snack Hub Purchase`}
+                    alt="UPI QR Code"
+                    className="w-64 h-64 object-contain"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "block";
+                    }}
+                  />
+                  <div
+                    style={{ display: "none" }}
+                    className="w-64 h-64 flex items-center justify-center"
+                  >
+                    <div className="text-center">
+                      <QrCode
+                        size={64}
+                        className={`mx-auto mb-2 ${
+                          darkMode ? "text-gray-500" : "text-gray-400"
+                        }`}
+                      />
+                      <p className="text-sm">QR Code Loading...</p>
+                      <p className="text-xs mt-2">
+                        UPI ID: abirchodha1@okhdfcbank
+                      </p>
+                      <p className="text-xs">Amount: ₹{cartTotal}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div
+              className={`p-3 rounded-lg mb-4 ${
+                darkMode
+                  ? "bg-blue-900/20 text-blue-300"
+                  : "bg-blue-50 text-blue-700"
+              }`}
+            >
+              <p className="text-sm">
+                📱 Open any UPI app (GPay, PhonePe, Paytm, etc.)
+                <br />
+                📷 Scan the QR code above
+                <br />
+                💰 Verify amount: ₹{cartTotal}
+                <br />✅ Complete the payment
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUPIModal(false)}
+                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                  darkMode
+                    ? "bg-gray-700 text-white hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={completePayment}
+                disabled={loading}
+                className="flex-2 bg-gradient-to-r from-green-600 to-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:from-green-700 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center justify-center"
+              >
+                {loading ? (
+                  "Processing..."
+                ) : (
+                  <>
+                    <CheckCircle size={16} className="mr-2" />
+                    Payment Completed
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p
+              className={`text-xs text-center mt-3 ${
+                darkMode ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              Click "Payment Completed" after successful UPI payment
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
