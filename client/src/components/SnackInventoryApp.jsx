@@ -1466,7 +1466,9 @@ const SnackInventoryApp = () => {
                   }`}
                 >
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=abirchodha1@okhdfcbank&pn=Snack Hub&am=${cartTotal}&cu=INR&tn=Snack Hub Purchase`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                      `upi://pay?pa=abirchodha1@okhdfcbank&pn=Snack%20Hub&am=${cartTotal}&cu=INR&tn=Snack%20Hub%20Purchase%20Order%20${Date.now()}`
+                    )}`}
                     alt="UPI QR Code"
                     className="w-64 h-64 object-contain"
                     onError={(e) => {
@@ -1490,6 +1492,9 @@ const SnackInventoryApp = () => {
                         UPI ID: abirchodha1@okhdfcbank
                       </p>
                       <p className="text-xs">Amount: ₹{cartTotal}</p>
+                      <p className="text-xs text-blue-500 mt-1">
+                        Manual UPI Payment Available
+                      </p>
                     </div>
                   </div>
                 </div>
