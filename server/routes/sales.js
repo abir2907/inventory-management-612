@@ -108,7 +108,7 @@ router.get("/", auth, async (req, res) => {
 // @access  Private
 router.get("/stats", [auth, adminAuth], async (req, res) => {
   try {
-    console.log("=== Sales Stats Route (Direct Method) ===");
+    console.log("=== Sales Revenue Stats ===");
 
     // Test basic connection
     const testCount = await Sale.countDocuments({});
@@ -119,12 +119,12 @@ router.get("/stats", [auth, adminAuth], async (req, res) => {
         success: true,
         data: {
           overall: {
-            totalSales: 0,
-            totalRevenue: 0,
-            totalProfit: 0,
-            totalItems: 0,
-            todaysSales: 0,
-            todaysRevenue: 0,
+            totalSales: 0, // Number of sales transactions
+            totalRevenue: 0, // Total money earned
+            totalProfit: 0, // Total profit
+            totalItemsSold: 0, // Total items sold (not inventory)
+            todaysSales: 0, // Number of sales today
+            todaysRevenue: 0, // Money earned today
             averageOrderValue: 0,
           },
         },
@@ -132,33 +132,33 @@ router.get("/stats", [auth, adminAuth], async (req, res) => {
     }
 
     // Get all active sales (not cancelled)
-    console.log("Fetching all active sales...");
+    console.log("Fetching all active sales for revenue calculation...");
     const allSales = await Sale.find({ status: { $ne: "cancelled" } }).lean();
     console.log("Found active sales:", allSales.length);
 
-    // Calculate totals manually
+    // Calculate REVENUE totals (money earned)
     let totalRevenue = 0;
-    let totalItems = 0;
+    let totalItemsSold = 0;
 
     for (const sale of allSales) {
-      // Add to total revenue
+      // Add to total REVENUE (money earned)
       totalRevenue += sale.totalAmount || 0;
 
-      // Count total items
+      // Count total items SOLD (for reference, not main metric)
       if (sale.items && Array.isArray(sale.items)) {
         for (const item of sale.items) {
-          totalItems += item.quantity || 0;
+          totalItemsSold += item.quantity || 0;
         }
       }
     }
 
-    // Calculate today's sales
+    // Calculate TODAY'S revenue
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    console.log("Calculating today's sales between:", { today, tomorrow });
+    console.log("Calculating today's revenue between:", { today, tomorrow });
 
     const todaysSales = await Sale.find({
       createdAt: { $gte: today, $lt: tomorrow },
@@ -169,22 +169,22 @@ router.get("/stats", [auth, adminAuth], async (req, res) => {
 
     let todaysRevenue = 0;
     for (const sale of todaysSales) {
-      todaysRevenue += sale.totalAmount || 0;
+      todaysRevenue += sale.totalAmount || 0; // Sum of money earned today
     }
 
-    // Build final response
+    // Build final response - REVENUE FOCUSED
     const overallStats = {
-      totalSales: allSales.length, // Number of sales
-      totalRevenue: totalRevenue, // Total money earned
+      totalSales: allSales.length, // Number of sales transactions
+      totalRevenue: totalRevenue, // MAIN METRIC: Total money earned
       totalProfit: totalRevenue, // Since no cost, profit = revenue
-      totalItems: totalItems, // Total items sold across all sales
+      totalItemsSold: totalItemsSold, // Items sold (not inventory count)
       averageOrderValue:
         allSales.length > 0 ? totalRevenue / allSales.length : 0,
-      todaysSales: todaysSales.length, // Number of sales today
-      todaysRevenue: todaysRevenue, // Money earned today
+      todaysSales: todaysSales.length, // Number of transactions today
+      todaysRevenue: todaysRevenue, // MAIN METRIC: Money earned today
     };
 
-    console.log("Final stats calculated:", overallStats);
+    console.log("Revenue-focused stats calculated:", overallStats);
 
     res.json({
       success: true,
@@ -194,12 +194,10 @@ router.get("/stats", [auth, adminAuth], async (req, res) => {
     });
   } catch (error) {
     console.error("Sales stats route error:", error.message);
-    console.error("Error stack:", error.stack);
 
     res.status(500).json({
       success: false,
       message: `Server error: ${error.message}`,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 });

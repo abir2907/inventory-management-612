@@ -111,31 +111,48 @@ const SnackInventoryApp = () => {
 
   const loadStats = async () => {
     try {
-      // Fetch snack stats for ALL users
+      console.log("=== Loading Correct Stats ===");
+
+      // Fetch snack stats for inventory data
       const snackStats = await snacksAPI.getStats();
+      console.log("Snack stats received:", snackStats);
 
       let salesStats = {
         data: {
           overall: {
             totalRevenue: 0,
-            totalSales: 0,
             todaysRevenue: 0,
-            totalItems: 0,
           },
         },
-      }; // Default sales stats
+      };
 
       // Fetch sales stats ONLY for admins
       if (user?.role === "admin") {
-        salesStats = await salesAPI.getSalesStats();
+        console.log("User is admin, fetching sales stats...");
+        try {
+          salesStats = await salesAPI.getSalesStats();
+          console.log("Sales stats received:", salesStats);
+        } catch (salesError) {
+          console.error("Sales stats error:", salesError);
+        }
       }
 
-      setStats({
-        totalItems: salesStats.data?.overall?.totalItems || 0, // Changed from snackStats
+      const finalStats = {
+        // TOTAL ITEMS = Current inventory quantity (from snacks)
+        totalItems: snackStats.data?.overall?.totalQuantity || 0,
+
+        // LOW STOCK = Items with low stock
         lowStockItems: snackStats.data?.lowStockCount || 0,
-        totalSales: salesStats.data?.overall?.totalSales || 0, // Changed from totalRevenue
-        todaySales: salesStats.data?.overall?.todaysSales || 0, // Changed field name
-      });
+
+        // TOTAL SALES = Total revenue earned (from sales)
+        totalSales: salesStats.data?.overall?.totalRevenue || 0,
+
+        // TODAY'S SALES = Today's revenue earned (from sales)
+        todaySales: salesStats.data?.overall?.todaysRevenue || 0,
+      };
+
+      console.log("Correct stats being set:", finalStats);
+      setStats(finalStats);
     } catch (error) {
       console.error("Error loading stats:", error);
     }
