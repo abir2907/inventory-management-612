@@ -611,7 +611,6 @@ const SnackInventoryApp = () => {
                 ))
               : [
                   { key: "shop", label: "Shop", icon: ShoppingCart },
-                  { key: "cart", label: "Cart", icon: ShoppingCart },
                   { key: "history", label: "Purchase History", icon: Clock },
                 ].map(({ key, label, icon: Icon }) => (
                   <button
@@ -626,14 +625,7 @@ const SnackInventoryApp = () => {
                     }`}
                   >
                     <Icon size={16} className="mr-2" />
-                    {key === "cart"
-                      ? `Cart${cartItemCount > 0 ? ` (${cartItemCount})` : ""}`
-                      : label}
-                    {key === "cart" && cartItemCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center text-[10px]">
-                        {cartItemCount}
-                      </span>
-                    )}
+                    {label}
                   </button>
                 ))}
           </div>
@@ -1605,6 +1597,32 @@ const SnackInventoryApp = () => {
           </div>
         )}
       </div>
+
+      {/* Sticky Cart Button for Customers */}
+      {user.role === "customer" && activeView !== "cart" && (
+        <button
+          onClick={() => setActiveView("cart")}
+          className={`fixed bottom-6 right-6 z-40 ${
+            darkMode
+              ? "bg-blue-600 hover:bg-blue-700"
+              : "bg-blue-600 hover:bg-blue-700"
+          } text-white p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 flex items-center gap-2 ${
+            cartItemCount > 0 ? "animate-pulse" : ""
+          }`}
+        >
+          <ShoppingCart size={24} />
+          {cartItemCount > 0 && (
+            <>
+              <span className="bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center absolute -top-2 -right-2 font-bold">
+                {cartItemCount}
+              </span>
+              <span className="hidden sm:block font-semibold">
+                ₹{cartTotal}
+              </span>
+            </>
+          )}
+        </button>
+      )}
 
       {/* Low Stock Modal */}
       {showLowStockModal && (
