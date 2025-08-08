@@ -584,7 +584,11 @@ const SnackInventoryApp = () => {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div
+        className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ${
+          user?.role === "customer" ? "pb-32" : "pb-8"
+        }`}
+      >
         {/* Navigation */}
         <nav className="mb-8">
           <div className="flex flex-wrap gap-2">
@@ -1606,19 +1610,22 @@ const SnackInventoryApp = () => {
             darkMode
               ? "bg-blue-600 hover:bg-blue-700"
               : "bg-blue-600 hover:bg-blue-700"
-          } text-white p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 flex items-center gap-2 ${
-            cartItemCount > 0 ? "animate-pulse" : ""
-          }`}
+          } text-white shadow-2xl transition-all transform hover:scale-110 ${
+            cartItemCount > 0
+              ? "animate-pulse rounded-2xl px-4 py-3"
+              : "rounded-full p-4"
+          } flex items-center gap-2`}
         >
           <ShoppingCart size={24} />
           {cartItemCount > 0 && (
             <>
-              <span className="bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center absolute -top-2 -right-2 font-bold">
+              <span className="bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center absolute -top-2 -left-2 font-bold">
                 {cartItemCount}
               </span>
-              <span className="hidden sm:block font-semibold">
-                ₹{cartTotal}
-              </span>
+              <div className="flex flex-col items-center">
+                <span className="font-semibold text-sm">₹{cartTotal}</span>
+                <span className="text-xs opacity-90">View Cart</span>
+              </div>
             </>
           )}
         </button>
