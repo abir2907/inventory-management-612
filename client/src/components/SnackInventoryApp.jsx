@@ -876,7 +876,7 @@ const SnackInventoryApp = () => {
                   } rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 relative`}
                 >
                   {/*  LOW STOCK RIBBON */}
-                  {snack.quantity <= 2 && (
+                  {snack.quantity <= 1 && (
                     <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-20 shadow-lg">
                       <div className="flex items-center">
                         <AlertTriangle size={10} className="mr-1" />
@@ -1106,7 +1106,7 @@ const SnackInventoryApp = () => {
                           </span>
                         </div>
 
-                        {getAvailableQuantity(snack) <= 2 && (
+                        {getAvailableQuantity(snack) <= 1 && (
                           <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-20 shadow-lg">
                             <div className="flex items-center">
                               <AlertTriangle size={10} className="mr-1" />
