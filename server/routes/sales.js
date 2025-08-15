@@ -297,6 +297,260 @@ router.get("/test-data", [auth, adminAuth], async (req, res) => {
   }
 });
 
+router.get("/debug-data-structure", [auth, adminAuth], async (req, res) => {
+  try {
+    console.log("=== DEBUG: Analyzing Sales Data Structure ===");
+
+    // Get one recent sale with all details
+    const sampleSales = await Sale.find({
+      status: { $in: ["completed", "confirmed", "delivered"] },
+    })
+      .limit(3)
+      .lean();
+
+    console.log("Sample sales found:", sampleSales.length);
+
+    if (sampleSales.length > 0) {
+      console.log(
+        "First sale structure:",
+        JSON.stringify(sampleSales[0], null, 2)
+      );
+      console.log(
+        "Items structure:",
+        JSON.stringify(sampleSales[0].items, null, 2)
+      );
+
+      // Check if snack IDs are strings or ObjectIds
+      if (sampleSales[0].items && sampleSales[0].items.length > 0) {
+        const firstItem = sampleSales[0].items[0];
+        console.log("First item snack ID type:", typeof firstItem.snack);
+        console.log("First item snack ID value:", firstItem.snack);
+      }
+    }
+
+    // Test the aggregation step by step
+    console.log("\n=== Testing Aggregation Step by Step ===");
+
+    // Step 1: Match sales
+    const matchedSales = await Sale.aggregate([
+      { $match: { status: { $in: ["completed", "confirmed", "delivered"] } } },
+      { $count: "total" },
+    ]);
+    console.log("Step 1 - Matched sales:", matchedSales);
+
+    // Step 2: Unwind items
+    const unwoundItems = await Sale.aggregate([
+      { $match: { status: { $in: ["completed", "confirmed", "delivered"] } } },
+      { $unwind: "$items" },
+      { $count: "total" },
+    ]);
+    console.log("Step 2 - Unwound items:", unwoundItems);
+
+    // Step 3: Check snack lookup without ObjectId conversion first
+    const basicLookup = await Sale.aggregate([
+      { $match: { status: { $in: ["completed", "confirmed", "delivered"] } } },
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "snacks",
+          localField: "items.snack",
+          foreignField: "_id",
+          as: "snack",
+        },
+      },
+      { $limit: 5 },
+      {
+        $project: {
+          "items.snack": 1,
+          "items.totalPrice": 1,
+          "items.quantity": 1,
+          "snack._id": 1,
+          "snack.name": 1,
+          "snack.category": 1,
+          snackFound: { $size: "$snack" },
+        },
+      },
+    ]);
+    console.log(
+      "Step 3 - Basic lookup result:",
+      JSON.stringify(basicLookup, null, 2)
+    );
+
+    // Step 4: Try with ObjectId conversion
+    const mongoose = require("mongoose");
+    const objectIdLookup = await Sale.aggregate([
+      { $match: { status: { $in: ["completed", "confirmed", "delivered"] } } },
+      { $unwind: "$items" },
+      {
+        $addFields: {
+          "items.snackObjectId": {
+            $cond: {
+              if: { $eq: [{ $type: "$items.snack" }, "string"] },
+              then: { $toObjectId: "$items.snack" },
+              else: "$items.snack",
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "snacks",
+          localField: "items.snackObjectId",
+          foreignField: "_id",
+          as: "snack",
+        },
+      },
+      { $limit: 5 },
+      {
+        $project: {
+          "items.snack": 1,
+          "items.snackObjectId": 1,
+          "items.totalPrice": 1,
+          "items.quantity": 1,
+          "snack._id": 1,
+          "snack.name": 1,
+          "snack.category": 1,
+          snackFound: { $size: "$snack" },
+        },
+      },
+    ]);
+    console.log(
+      "Step 4 - ObjectId lookup result:",
+      JSON.stringify(objectIdLookup, null, 2)
+    );
+
+    // Step 5: Test final grouping
+    const groupedData = await Sale.aggregate([
+      { $match: { status: { $in: ["completed", "confirmed", "delivered"] } } },
+      { $unwind: "$items" },
+      {
+        $addFields: {
+          "items.snackObjectId": {
+            $cond: {
+              if: { $eq: [{ $type: "$items.snack" }, "string"] },
+              then: { $toObjectId: "$items.snack" },
+              else: "$items.snack",
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "snacks",
+          localField: "items.snackObjectId",
+          foreignField: "_id",
+          as: "snack",
+        },
+      },
+      { $unwind: { path: "$snack", preserveNullAndEmptyArrays: false } },
+      { $match: { "snack.isActive": true } },
+      {
+        $group: {
+          _id: "$items.snackObjectId",
+          revenue: { $sum: "$items.totalPrice" },
+          sales: { $sum: "$items.quantity" },
+          snackName: { $first: "$snack.name" },
+          snackCategory: { $first: "$snack.category" },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 },
+    ]);
+    console.log(
+      "Step 5 - Final grouped data:",
+      JSON.stringify(groupedData, null, 2)
+    );
+
+    // Check collection names
+    const collections = await Sale.db.db.listCollections().toArray();
+    const collectionNames = collections.map((c) => c.name);
+    console.log("Available collections:", collectionNames);
+
+    res.json({
+      success: true,
+      debug_info: {
+        sampleSalesCount: sampleSales.length,
+        sampleSale: sampleSales[0] || null,
+        aggregationSteps: {
+          matchedSales: matchedSales[0],
+          unwoundItems: unwoundItems[0],
+          basicLookupSample: basicLookup[0] || null,
+          objectIdLookupSample: objectIdLookup[0] || null,
+          groupedDataSample: groupedData[0] || null,
+        },
+        collections: collectionNames,
+        totalGroupedResults: groupedData.length,
+      },
+    });
+  } catch (error) {
+    console.error("Debug route error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
+// Add this route to routes/sales.js to test the dashboard functions directly
+
+// @route   GET /api/sales/test-dashboard
+// @desc    Test dashboard aggregation functions
+// @access  Private (Admin)
+router.get("/test-dashboard", [auth, adminAuth], async (req, res) => {
+  try {
+    console.log("=== Testing Dashboard Functions ===");
+
+    // Test each function individually
+    const topByRevenue = await Snack.getTopByRevenue(10);
+    console.log("Top by revenue function result:", topByRevenue);
+
+    const topByCategory = await Snack.getTopByCategory(5);
+    console.log("Top by category function result:", topByCategory);
+
+    const categoryStats = await Snack.getCategoryStats();
+    console.log("Category stats function result:", categoryStats);
+
+    // Also test the simpler inventory stats that should work
+    const inventoryStats = await Snack.getInventoryStats();
+    console.log("Inventory stats:", inventoryStats);
+
+    // Check if Sales collection exists and has data
+    const salesCount = await Sale.countDocuments({});
+    const activeSalesCount = await Sale.countDocuments({
+      status: { $in: ["completed", "confirmed", "delivered"] },
+    });
+
+    res.json({
+      success: true,
+      test_results: {
+        salesCount,
+        activeSalesCount,
+        topByRevenue: {
+          count: topByRevenue.length,
+          data: topByRevenue,
+        },
+        topByCategory: {
+          count: topByCategory.length,
+          data: topByCategory,
+        },
+        categoryStats: {
+          count: categoryStats.length,
+          data: categoryStats,
+        },
+        inventoryStats,
+      },
+    });
+  } catch (error) {
+    console.error("Test dashboard error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
 // @route   GET /api/sales/:id
 // @desc    Get single sale
 // @access  Private

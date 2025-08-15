@@ -108,7 +108,12 @@ export const snacksAPI = {
   deleteSnack: (id) => API.delete(`/snacks/${id}`),
   generateQRCode: (id) => API.get(`/snacks/${id}/qr`),
   getLowStock: () => API.get("/snacks/low-stock"),
-  getStats: () => API.get("/snacks/stats"),
+  getStats: async () => {
+    console.log("🔄 Making stats API call...");
+    const response = await API.get("/snacks/stats");
+    console.log("📥 Raw API response:", response);
+    return response.data;
+  },
   createSnackWithImage: (snackData, config) =>
     API.post("/snacks", snackData, config),
   updateSnackWithImage: (id, snackData, config) =>

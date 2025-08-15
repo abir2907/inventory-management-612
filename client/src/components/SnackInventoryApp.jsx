@@ -26,6 +26,10 @@ import {
   CreditCard,
   Bell,
   CheckCircle,
+  X,
+  Award,
+  Target,
+  PieChart,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { snacksAPI, salesAPI, usersAPI } from "../services/api";
@@ -53,6 +57,11 @@ const SnackInventoryApp = () => {
     lowStockItems: 0,
     totalSales: 0,
     todaySales: 0,
+  });
+  const [dashboardData, setDashboardData] = useState({
+    topByRevenue: [],
+    topByCategory: [],
+    categoryStats: [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null); // Filter states
@@ -116,50 +125,60 @@ const SnackInventoryApp = () => {
 
   const loadStats = async () => {
     try {
-      console.log("=== Loading Correct Stats ===");
+      console.log("--- STARTING STATS LOAD (Final Attempt) ---");
 
-      // Fetch snack stats for inventory data
-      const snackStats = await snacksAPI.getStats();
-      console.log("Snack stats received:", snackStats);
+      // Step 1: Fetch Snack Stats - this now returns the payload object directly.
+      const snackStatsPayload = await snacksAPI.getStats();
 
-      let salesStats = {
-        data: {
-          overall: {
-            totalRevenue: 0,
-            todaysRevenue: 0,
-          },
-        },
-      };
+      // We check if the payload itself is a valid object.
+      // Uses Object.hasOwn() to fix the linting error.
+      if (
+        !snackStatsPayload ||
+        typeof snackStatsPayload !== "object" ||
+        !Object.hasOwn(snackStatsPayload, "overall")
+      ) {
+        console.error(
+          "Received invalid or incomplete snack stats payload:",
+          snackStatsPayload
+        );
+        throw new Error("Snack stats payload is invalid or missing.");
+      }
+      console.log(
+        "Successfully extracted snack stats payload:",
+        snackStatsPayload
+      );
 
-      // Fetch sales stats ONLY for admins
+      // Step 2: Fetch Sales Stats (only for admin)
+      let salesData = {};
       if (user?.role === "admin") {
-        console.log("User is admin, fetching sales stats...");
-        try {
-          salesStats = await salesAPI.getSalesStats();
-          console.log("Sales stats received:", salesStats);
-        } catch (salesError) {
-          console.error("Sales stats error:", salesError);
-        }
+        const salesStatsResponse = await salesAPI.getSalesStats();
+        // As seen in your logs, the necessary data is nested.
+        salesData =
+          salesStatsResponse?.data?.overall || salesStatsResponse?.data || {};
+        console.log("Extracted sales data:", salesData);
       }
 
+      // Step 3: Set the top-level stat cards
       const finalStats = {
-        // TOTAL ITEMS = Current inventory quantity (from snacks)
-        totalItems: snackStats.data?.overall?.totalQuantity || 0,
-
-        // LOW STOCK = Items with low stock
-        lowStockItems: snackStats.data?.lowStockCount || 0,
-
-        // TOTAL SALES = Total revenue earned (from sales)
-        totalSales: salesStats.data?.overall?.totalRevenue || 0,
-
-        // TODAY'S SALES = Today's revenue earned (from sales)
-        todaySales: salesStats.data?.overall?.todaysRevenue || 0,
+        totalItems: snackStatsPayload.overall?.totalQuantity || 0,
+        lowStockItems: snackStatsPayload.lowStockCount || 0,
+        totalSales: salesData.totalRevenue || 0,
+        todaySales: salesData.todaysRevenue || 0,
       };
-
-      console.log("Correct stats being set:", finalStats);
       setStats(finalStats);
+      console.log("Setting final stats:", finalStats);
+
+      // Step 4: Set the dashboard chart data from the payload
+      const newDashboardData = {
+        topByRevenue: snackStatsPayload.topByRevenue || [],
+        topByCategory: snackStatsPayload.topByCategory || [],
+        categoryStats: snackStatsPayload.categoryStats || [],
+      };
+      setDashboardData(newDashboardData);
+      console.log("--- DASHBOARD DATA SET SUCCESSFULLY ---", newDashboardData);
     } catch (error) {
       console.error("Error loading stats:", error);
+      toast.error("Failed to load dashboard stats.");
     }
   };
 
@@ -636,6 +655,7 @@ const SnackInventoryApp = () => {
         </nav>
 
         {/* Dashboard View */}
+        {/* Enhanced Dashboard View - Replace the existing Dashboard View section with this */}
         {activeView === "dashboard" && user.role === "admin" && (
           <div className="space-y-8">
             {/* Stats Cards */}
@@ -736,15 +756,23 @@ const SnackInventoryApp = () => {
               </div>
             </div>
 
-            {/* Recent Activity & Top Selling */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Enhanced Analytics Grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
               {/* Recent Sales */}
               <div
                 className={`${
                   darkMode ? "bg-gray-800" : "bg-white"
                 } rounded-xl shadow-lg p-6`}
               >
-                <h3 className="text-lg font-semibold mb-4">Recent Sales</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Clock className="mr-2 text-blue-500" size={20} />
+                    Recent Sales
+                  </h3>
+                  <span className="text-xs text-blue-500 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded-full">
+                    Latest 5
+                  </span>
+                </div>
                 <div className="space-y-3">
                   {salesHistory.slice(0, 5).map((sale) => (
                     <div
@@ -753,7 +781,7 @@ const SnackInventoryApp = () => {
                         darkMode ? "bg-gray-700" : "bg-gray-50"
                       }`}
                     >
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium">{sale.customerName}</p>
                         <p
                           className={`text-sm ${
@@ -761,40 +789,82 @@ const SnackInventoryApp = () => {
                           }`}
                         >
                           {sale.items?.length || 0} items •{" "}
-                          {new Date(sale.createdAt).toLocaleTimeString()}
+                          {new Date(sale.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-green-600">
                           ₹{sale.totalAmount}
                         </p>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            sale.status === "completed" ||
+                            sale.status === "confirmed"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                          }`}
+                        >
+                          {sale.status || "completed"}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Top Selling */}
+              {/* Top Selling Items by Quantity */}
               <div
                 className={`${
                   darkMode ? "bg-gray-800" : "bg-white"
                 } rounded-xl shadow-lg p-6`}
               >
-                <h3 className="text-lg font-semibold mb-4">
-                  Top Selling Items
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Award className="mr-2 text-yellow-500" size={20} />
+                    Top by Quantity
+                  </h3>
+                  <span className="text-xs text-yellow-500 bg-yellow-100 dark:bg-yellow-900 px-2 py-1 rounded-full">
+                    Most Sold
+                  </span>
+                </div>
                 <div className="space-y-3">
                   {[...snacks]
                     .sort((a, b) => (b.sales || 0) - (a.sales || 0))
                     .slice(0, 5)
-                    .map((snack) => (
+                    .map((snack, index) => (
                       <div
                         key={snack._id}
                         className={`flex items-center p-3 rounded-lg ${
                           darkMode ? "bg-gray-700" : "bg-gray-50"
                         }`}
                       >
-                        <div className="text-2xl mr-3">{snack.image}</div>
+                        <div className="flex items-center mr-3">
+                          <span
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              index === 0
+                                ? "bg-yellow-500 text-white"
+                                : index === 1
+                                ? "bg-gray-400 text-white"
+                                : index === 2
+                                ? "bg-orange-500 text-white"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
+                        </div>
+                        {snack.imageUrl ? (
+                          <img
+                            src={snack.imageUrl}
+                            alt={snack.name}
+                            className="w-10 h-10 object-cover rounded-lg mr-3"
+                          />
+                        ) : (
+                          <div className="text-2xl mr-3">{snack.image}</div>
+                        )}
                         <div className="flex-1">
                           <p className="font-medium">{snack.name}</p>
                           <p
@@ -802,11 +872,444 @@ const SnackInventoryApp = () => {
                               darkMode ? "text-gray-400" : "text-gray-600"
                             }`}
                           >
-                            ₹{snack.price}
+                            {snack.sales || 0} sold • ₹{snack.price}
                           </p>
                         </div>
                       </div>
                     ))}
+                </div>
+              </div>
+
+              {/* Top Items by Revenue */}
+              <div
+                className={`${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-lg p-6`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Target className="mr-2 text-green-500" size={20} />
+                    Top by Revenue
+                  </h3>
+                  <span className="text-xs text-green-500 bg-green-100 dark:bg-green-900 px-2 py-1 rounded-full">
+                    Revenue Leaders
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {dashboardData.topByRevenue
+                    .slice(0, 5)
+                    .map((snack, index) => (
+                      <div
+                        key={snack._id}
+                        className={`flex items-center p-3 rounded-lg ${
+                          darkMode ? "bg-gray-700" : "bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center mr-3">
+                          <span
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              index === 0
+                                ? "bg-green-500 text-white"
+                                : index === 1
+                                ? "bg-green-400 text-white"
+                                : index === 2
+                                ? "bg-green-300 text-white"
+                                : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
+                        </div>
+                        {snack.imageUrl ? (
+                          <img
+                            src={snack.imageUrl}
+                            alt={snack.name}
+                            className="w-10 h-10 object-cover rounded-lg mr-3"
+                          />
+                        ) : (
+                          <div className="text-2xl mr-3">{snack.image}</div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium">{snack.name}</p>
+                          <p
+                            className={`text-sm ${
+                              darkMode ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            ₹{snack.revenue || 0} earned • {snack.sales || 0}{" "}
+                            sold
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Category Performance & Top Items by Category */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              {/* Category Performance */}
+              <div
+                className={`${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-lg p-6`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <PieChart className="mr-2 text-purple-500" size={20} />
+                    Category Performance
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  {dashboardData.categoryStats.map((category) => (
+                    <div
+                      key={category._id}
+                      className={`p-4 rounded-lg border ${
+                        darkMode
+                          ? "border-gray-600 bg-gray-700"
+                          : "border-gray-200 bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <span className="text-lg mr-2">
+                            {category._id === "chips"
+                              ? "🍟"
+                              : category._id === "chocolate"
+                              ? "🍫"
+                              : category._id === "cookies"
+                              ? "🍪"
+                              : category._id === "cake"
+                              ? "🍰"
+                              : category._id === "noodles"
+                              ? "🍜"
+                              : category._id === "namkeen"
+                              ? "🥨"
+                              : "🍿"}
+                          </span>
+                          <div>
+                            <h4 className="font-semibold capitalize">
+                              {category._id}
+                            </h4>
+                            <p
+                              className={`text-xs ${
+                                darkMode ? "text-gray-400" : "text-gray-600"
+                              }`}
+                            >
+                              {category.totalItems} items
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">
+                            ₹{category.totalRevenue || 0}
+                          </p>
+                          <p
+                            className={`text-xs ${
+                              darkMode ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            {category.totalSales || 0} sold
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <span
+                            className={`${
+                              darkMode ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            Avg Price:
+                          </span>
+                          <p className="font-medium">
+                            ₹{Math.round(category.avgPrice || 0)}
+                          </p>
+                        </div>
+                        <div>
+                          <span
+                            className={`${
+                              darkMode ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            Stock:
+                          </span>
+                          <p className="font-medium">
+                            {category.totalStock || 0}
+                          </p>
+                        </div>
+                        <div>
+                          <span
+                            className={`${
+                              darkMode ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            Revenue/Item:
+                          </span>
+                          <p className="font-medium">
+                            ₹
+                            {Math.round(
+                              (category.totalRevenue || 0) /
+                                (category.totalItems || 1)
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Items by Category */}
+              <div
+                className={`${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-lg p-6`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Star className="mr-2 text-orange-500" size={20} />
+                    Top Items by Category
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  {dashboardData.topByCategory.map((categoryData) => (
+                    <div
+                      key={categoryData._id || categoryData.category}
+                      className={`p-3 rounded-lg ${
+                        darkMode ? "bg-gray-700" : "bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center mb-2">
+                        <span className="text-lg mr-2">
+                          {(categoryData._id || categoryData.category) ===
+                          "chips"
+                            ? "🍟"
+                            : (categoryData._id || categoryData.category) ===
+                              "chocolate"
+                            ? "🍫"
+                            : (categoryData._id || categoryData.category) ===
+                              "cookies"
+                            ? "🍪"
+                            : (categoryData._id || categoryData.category) ===
+                              "cake"
+                            ? "🍰"
+                            : (categoryData._id || categoryData.category) ===
+                              "noodles"
+                            ? "🍜"
+                            : (categoryData._id || categoryData.category) ===
+                              "namkeen"
+                            ? "🥨"
+                            : "🍿"}
+                        </span>
+                        <h4 className="font-semibold capitalize">
+                          {categoryData._id || categoryData.category}
+                        </h4>
+                      </div>
+                      <div className="space-y-2">
+                        {(categoryData.topItems || categoryData.items || [])
+                          .slice(0, 3)
+                          .map((item, index) => (
+                            <div
+                              key={item._id}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <div className="flex items-center">
+                                <span
+                                  className={`w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${
+                                    index === 0
+                                      ? "bg-yellow-400 text-yellow-900"
+                                      : index === 1
+                                      ? "bg-gray-400 text-white"
+                                      : "bg-orange-400 text-white"
+                                  }`}
+                                >
+                                  {index + 1}
+                                </span>
+                                <span className="font-medium">{item.name}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-green-600 font-medium">
+                                  ₹{item.revenue || 0}
+                                </span>
+                                <div className="text-xs text-gray-500">
+                                  {item.sales || 0} sold
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                  {dashboardData.topByCategory.length === 0 && (
+                    <div className="text-center py-4 text-gray-500">
+                      <Package size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>No category data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Insights Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Stock Alerts Summary */}
+              <div
+                className={`${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-lg p-6`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Bell className="mr-2 text-red-500" size={20} />
+                    Stock Alerts
+                  </h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
+                    <div className="flex items-center">
+                      <AlertTriangle className="text-red-500 mr-2" size={16} />
+                      <span className="font-medium text-red-700 dark:text-red-300">
+                        Out of Stock
+                      </span>
+                    </div>
+                    <span className="text-red-600 font-bold">
+                      {
+                        snacks.filter(
+                          (s) => s.quantity === 0 && s.isActive !== false
+                        ).length
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                    <div className="flex items-center">
+                      <AlertTriangle
+                        className="text-yellow-500 mr-2"
+                        size={16}
+                      />
+                      <span className="font-medium text-yellow-700 dark:text-yellow-300">
+                        Low Stock
+                      </span>
+                    </div>
+                    <span className="text-yellow-600 font-bold">
+                      {lowStockItems.filter((s) => s.quantity > 0).length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                    <div className="flex items-center">
+                      <CheckCircle className="text-green-500 mr-2" size={16} />
+                      <span className="font-medium text-green-700 dark:text-green-300">
+                        Well Stocked
+                      </span>
+                    </div>
+                    <span className="text-green-600 font-bold">
+                      {
+                        snacks.filter(
+                          (s) =>
+                            s.quantity > (s.lowStockAlert || 5) &&
+                            s.isActive !== false
+                        ).length
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Revenue Insights */}
+              <div
+                className={`${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-lg p-6`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <TrendingUp className="mr-2 text-green-500" size={20} />
+                    Revenue Insights
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Average Sale Value
+                      </span>
+                      <span className="font-semibold">
+                        ₹
+                        {salesHistory.length > 0
+                          ? Math.round(
+                              salesHistory.reduce(
+                                (sum, sale) => sum + (sale.totalAmount || 0),
+                                0
+                              ) / salesHistory.length
+                            )
+                          : 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Total Items Sold
+                      </span>
+                      <span className="font-semibold">
+                        {snacks.reduce(
+                          (sum, snack) => sum + (snack.sales || 0),
+                          0
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Inventory Value
+                      </span>
+                      <span className="font-semibold text-blue-600">
+                        ₹
+                        {snacks.reduce(
+                          (sum, snack) => sum + snack.price * snack.quantity,
+                          0
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div
+                className={`${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-lg p-6`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Target className="mr-2 text-blue-500" size={20} />
+                    Quick Actions
+                  </h3>
+                </div>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Add New Snack
+                  </button>
+                  <button
+                    onClick={() => setShowLowStockModal(true)}
+                    className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center"
+                  >
+                    <AlertTriangle size={16} className="mr-2" />
+                    View Low Stock ({lowStockItems.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveView("inventory")}
+                    className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center"
+                  >
+                    <Package size={16} className="mr-2" />
+                    Manage Inventory
+                  </button>
                 </div>
               </div>
             </div>
@@ -829,12 +1332,22 @@ const SnackInventoryApp = () => {
                     placeholder="Search snacks..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                    className={`w-full pl-10 ${
+                      searchTerm ? "pr-10" : "pr-4"
+                    } py-2 rounded-lg border ${
                       darkMode
                         ? "bg-gray-700 border-gray-600 text-white"
                         : "bg-white border-gray-300 text-gray-900"
                     } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                   />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
 
                 <select
@@ -1006,12 +1519,22 @@ const SnackInventoryApp = () => {
                 placeholder="Search for snacks..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${
+                className={`w-full pl-10 ${
+                  searchTerm ? "pr-10" : "pr-4"
+                } py-3 rounded-lg border ${
                   darkMode
                     ? "bg-gray-700 border-gray-600 text-white"
                     : "bg-white border-gray-300 text-gray-900"
                 } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
 
             {(() => {

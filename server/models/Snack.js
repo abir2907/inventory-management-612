@@ -282,6 +282,169 @@ snackSchema.statics.getInventoryStats = async function () {
   );
 };
 
+// Replace these methods in models/Snack.js
+
+// Get top items by revenue (calculates directly from sales data)
+snackSchema.statics.getTopByRevenue = async function (limit = 10) {
+  const Sale = mongoose.model("Sale");
+  try {
+    console.log("=== Getting Top By Revenue (from Sales) ===");
+    const topSnacks = await Sale.aggregate([
+      { $match: { status: { $ne: "cancelled" } } },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.snack",
+          revenue: { $sum: "$items.totalPrice" },
+          sales: { $sum: "$items.quantity" },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "snacks",
+          localField: "_id",
+          foreignField: "_id",
+          as: "snackDetails",
+        },
+      },
+      { $unwind: "$snackDetails" },
+      {
+        $project: {
+          _id: "$snackDetails._id",
+          name: "$snackDetails.name",
+          category: "$snackDetails.category",
+          price: "$snackDetails.price",
+          image: "$snackDetails.image",
+          imageUrl: "$snackDetails.imageUrl",
+          revenue: "$revenue",
+          sales: "$sales",
+        },
+      },
+    ]);
+    return topSnacks;
+  } catch (error) {
+    console.error("Error in getTopByRevenue:", error);
+    return [];
+  }
+};
+
+// Get category performance stats (calculates directly from sales data)
+snackSchema.statics.getCategoryStats = async function () {
+  const Sale = mongoose.model("Sale");
+  try {
+    console.log("=== Getting Category Stats (from Sales) ===");
+    const categoryStats = await Sale.aggregate([
+      { $match: { status: { $ne: "cancelled" } } },
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "snacks",
+          localField: "items.snack",
+          foreignField: "_id",
+          as: "snackDetails",
+        },
+      },
+      { $unwind: "$snackDetails" },
+      {
+        $group: {
+          _id: "$snackDetails.category",
+          totalRevenue: { $sum: "$items.totalPrice" },
+          totalSales: { $sum: "$items.quantity" },
+          totalItems: { $addToSet: "$items.snack" },
+        },
+      },
+      {
+        $lookup: {
+          from: "snacks",
+          let: { categoryName: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$category", "$$categoryName"] } } },
+            {
+              $group: {
+                _id: null,
+                totalStock: { $sum: "$quantity" },
+                avgPrice: { $avg: "$price" },
+              },
+            },
+          ],
+          as: "inventoryStats",
+        },
+      },
+      { $unwind: "$inventoryStats" },
+      {
+        $project: {
+          _id: "$_id",
+          category: "$_id",
+          totalRevenue: "$totalRevenue",
+          totalSales: "$totalSales",
+          totalItems: { $size: "$totalItems" },
+          totalStock: "$inventoryStats.totalStock",
+          avgPrice: "$inventoryStats.avgPrice",
+        },
+      },
+      { $sort: { totalRevenue: -1 } },
+    ]);
+    return categoryStats;
+  } catch (error) {
+    console.error("Error in getCategoryStats:", error);
+    return [];
+  }
+};
+
+// Get top items by category (calculates directly from sales data)
+snackSchema.statics.getTopByCategory = async function (limit = 3) {
+  const Sale = mongoose.model("Sale");
+  try {
+    console.log("=== Getting Top By Category (from Sales) ===");
+    const topItemsByCategory = await Sale.aggregate([
+      { $match: { status: { $ne: "cancelled" } } },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.snack",
+          totalRevenue: { $sum: "$items.totalPrice" },
+          totalSales: { $sum: "$items.quantity" },
+        },
+      },
+      {
+        $lookup: {
+          from: "snacks",
+          localField: "_id",
+          foreignField: "_id",
+          as: "snackDetails",
+        },
+      },
+      { $unwind: "$snackDetails" },
+      { $sort: { totalRevenue: -1 } },
+      {
+        $group: {
+          _id: "$snackDetails.category",
+          topItems: {
+            $push: {
+              _id: "$snackDetails._id",
+              name: "$snackDetails.name",
+              revenue: "$totalRevenue",
+              sales: "$totalSales",
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          category: "$_id",
+          topItems: { $slice: ["$topItems", limit] },
+        },
+      },
+    ]);
+    return topItemsByCategory;
+  } catch (error) {
+    console.error("Error in getTopByCategory:", error);
+    return [];
+  }
+};
+
 // Pre-save middleware to generate QR code
 snackSchema.pre("save", async function (next) {
   if (this.isNew || this.isModified("name") || this.isModified("price")) {

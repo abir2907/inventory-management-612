@@ -89,29 +89,113 @@ router.get("/", async (req, res) => {
 // @route   GET /api/snacks/stats
 // @desc    Get inventory statistics
 // @access  Private (Admin)
+// @route   GET /api/snacks/stats
+// @desc    Get inventory statistics
+// @access  Private (Admin)
 router.get("/stats", [auth, adminAuth], async (req, res) => {
   try {
-    const stats = await Snack.getInventoryStats();
-    const lowStockItems = await Snack.getLowStockItems();
-    const outOfStockItems = await Snack.getOutOfStockItems();
-    const topSelling = await Snack.getTopSelling(10);
+    console.log("=== Fetching all snack stats (Definitive Version) ===");
+
+    const results = await Promise.allSettled([
+      Snack.getInventoryStats(),
+      Snack.getLowStockItems(),
+      Snack.getOutOfStockItems(),
+      Snack.getTopSelling(10),
+      Snack.getTopByRevenue(10),
+      Snack.getTopByCategory(5),
+      Snack.getCategoryStats(),
+    ]);
+
+    const getValue = (result, defaultValue) =>
+      result.status === "fulfilled" ? result.value : defaultValue;
+
+    const stats = getValue(results[0], {});
+    const lowStockItems = getValue(results[1], []);
+    const outOfStockItems = getValue(results[2], []);
+    const topSelling = getValue(results[3], []);
+    const topByRevenue = getValue(results[4], []);
+    const topByCategory = getValue(results[5], []);
+    const categoryStats = getValue(results[6], []);
+
+    // --- NEW CONSOLE LOGS TO CONFIRM DATA ---
+    console.log(`\n--- Confirming Data Before Response ---`);
+    console.log(`topByRevenue contains ${topByRevenue.length} items.`);
+    console.log(`topByCategory contains ${topByCategory.length} items.`);
+    console.log(`categoryStats contains ${categoryStats.length} items.\n`);
+    // --- END OF NEW LOGS ---
+
+    const responseData = {
+      overall: stats,
+      lowStockCount: lowStockItems.length,
+      outOfStockCount: outOfStockItems.length,
+      lowStockItems,
+      outOfStockItems,
+      topSelling,
+      topByRevenue,
+      topByCategory,
+      categoryStats,
+    };
+
+    console.log("Final response object is complete. Sending to client.");
 
     res.json({
       success: true,
-      data: {
-        overall: stats,
-        lowStockCount: lowStockItems.length,
-        outOfStockCount: outOfStockItems.length,
-        lowStockItems,
-        outOfStockItems,
-        topSelling,
+      data: responseData,
+    });
+  } catch (error) {
+    console.error("Error in /api/snacks/stats route:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching snack stats",
+    });
+  }
+});
+
+// Add this route TEMPORARILY after the existing stats route
+router.get("/debug-aggregation", [auth, adminAuth], async (req, res) => {
+  try {
+    console.log("=== DEBUG: Testing Fixed Aggregations ===");
+
+    // Test 1: Direct Sale collection query
+    const Sale = require("../models/Sale");
+    const sampleSales = await Sale.find({
+      status: { $in: ["completed", "confirmed", "delivered"] },
+    })
+      .limit(2)
+      .lean();
+
+    console.log("Sample sales:", sampleSales);
+
+    // Test 2: Test new aggregation methods
+    const topRevenue = await Snack.getTopByRevenue(5);
+    const topCategory = await Snack.getTopByCategory(3);
+    const categoryStats = await Snack.getCategoryStats();
+
+    res.json({
+      success: true,
+      debug: {
+        sampleSalesCount: sampleSales.length,
+        sampleSale: sampleSales[0] || null,
+        topRevenue: {
+          count: topRevenue.length,
+          data: topRevenue,
+        },
+        topCategory: {
+          count: topCategory.length,
+          data: topCategory,
+        },
+        categoryStats: {
+          count: categoryStats.length,
+          data: categoryStats,
+        },
       },
     });
   } catch (error) {
-    console.error("Get snack stats error:", error);
+    console.error("Debug aggregation error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: error.message,
+      stack: error.stack,
     });
   }
 });
