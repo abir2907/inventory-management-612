@@ -952,7 +952,7 @@ const SnackInventoryApp = () => {
               <div
                 className={`${
                   darkMode ? "bg-gray-800" : "bg-white"
-                } rounded-xl shadow-lg p-6`}
+                } rounded-xl shadow-lg p-6 flex flex-col h-full`}
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold flex items-center">
@@ -960,19 +960,19 @@ const SnackInventoryApp = () => {
                     Category Performance
                   </h3>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-4 flex-1">
                   {dashboardData.categoryStats.map((category) => (
                     <div
                       key={category._id}
-                      className={`p-4 rounded-lg border ${
+                      className={`p-5 rounded-lg border ${
                         darkMode
                           ? "border-gray-600 bg-gray-700"
                           : "border-gray-200 bg-gray-50"
-                      }`}
+                      } hover:shadow-md transition-all`}
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center">
-                          <span className="text-lg mr-2">
+                          <span className="text-2xl mr-3">
                             {category._id === "chips"
                               ? "🍟"
                               : category._id === "chocolate"
@@ -988,75 +988,130 @@ const SnackInventoryApp = () => {
                               : "🍿"}
                           </span>
                           <div>
-                            <h4 className="font-semibold capitalize">
+                            <h4 className="font-semibold text-lg capitalize">
                               {category._id}
                             </h4>
                             <p
-                              className={`text-xs ${
+                              className={`text-sm ${
                                 darkMode ? "text-gray-400" : "text-gray-600"
                               }`}
                             >
-                              {category.totalItems} items
+                              {category.totalItems} items •{" "}
+                              {category.totalSales || 0} sold
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-green-600">
+                          <p className="font-bold text-lg text-green-600">
                             ₹{category.totalRevenue || 0}
                           </p>
                           <p
-                            className={`text-xs ${
+                            className={`text-sm ${
                               darkMode ? "text-gray-400" : "text-gray-600"
                             }`}
                           >
-                            {category.totalSales || 0} sold
+                            ₹{Math.round(category.avgPrice || 0)} avg
                           </p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-4 text-xs">
-                        <div>
-                          <span
-                            className={`${
-                              darkMode ? "text-gray-400" : "text-gray-600"
-                            }`}
-                          >
-                            Avg Price:
-                          </span>
-                          <p className="font-medium">
-                            ₹{Math.round(category.avgPrice || 0)}
+
+                      {/* Enhanced metrics row */}
+                      <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                        <div className="text-center">
+                          <p className="text-sm font-semibold text-blue-600">
+                            {(
+                              (category.totalItems / snacks.length) *
+                              100
+                            ).toFixed(0)}
+                            %
                           </p>
+                          <p className="text-xs text-gray-500">of inventory</p>
                         </div>
-                        <div>
-                          <span
-                            className={`${
-                              darkMode ? "text-gray-400" : "text-gray-600"
-                            }`}
-                          >
-                            Stock:
-                          </span>
-                          <p className="font-medium">
-                            {category.totalStock || 0}
+                        <div className="text-center">
+                          <p className="text-sm font-semibold text-orange-600">
+                            {category.totalSales || 0}
                           </p>
+                          <p className="text-xs text-gray-500">units sold</p>
                         </div>
-                        <div>
-                          <span
-                            className={`${
-                              darkMode ? "text-gray-400" : "text-gray-600"
-                            }`}
-                          >
-                            Revenue/Item:
-                          </span>
-                          <p className="font-medium">
-                            ₹
-                            {Math.round(
-                              (category.totalRevenue || 0) /
-                                (category.totalItems || 1)
-                            )}
+                        <div className="text-center">
+                          <p className="text-sm font-semibold text-purple-600">
+                            {category.totalItems > 0
+                              ? Math.round(
+                                  ((category.totalSales || 0) /
+                                    category.totalItems) *
+                                    100
+                                ) / 100
+                              : 0}
                           </p>
+                          <p className="text-xs text-gray-500">sales/item</p>
                         </div>
                       </div>
                     </div>
                   ))}
+
+                  {/* Empty state */}
+                  {dashboardData.categoryStats.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      <PieChart size={48} className="mx-auto mb-3 opacity-50" />
+                      <p className="text-lg">No category data available</p>
+                      <p className="text-sm">
+                        Add some snacks to see performance metrics
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Enhanced Summary Footer */}
+                <div
+                  className={`mt-6 pt-4 border-t ${
+                    darkMode ? "border-gray-600" : "border-gray-200"
+                  }`}
+                >
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-xl font-bold text-purple-500">
+                        {dashboardData.categoryStats.length}
+                      </p>
+                      <p
+                        className={`text-xs ${
+                          darkMode ? "text-gray-400" : "text-gray-600"
+                        }`}
+                      >
+                        Active Categories
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-green-500">
+                        ₹
+                        {dashboardData.categoryStats.reduce(
+                          (sum, cat) => sum + (cat.totalRevenue || 0),
+                          0
+                        )}
+                      </p>
+                      <p
+                        className={`text-xs ${
+                          darkMode ? "text-gray-400" : "text-gray-600"
+                        }`}
+                      >
+                        Total Revenue
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-blue-500">
+                        {dashboardData.categoryStats.reduce(
+                          (sum, cat) => sum + (cat.totalSales || 0),
+                          0
+                        )}
+                      </p>
+                      <p
+                        className={`text-xs ${
+                          darkMode ? "text-gray-400" : "text-gray-600"
+                        }`}
+                      >
+                        Items Sold
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1064,7 +1119,7 @@ const SnackInventoryApp = () => {
               <div
                 className={`${
                   darkMode ? "bg-gray-800" : "bg-white"
-                } rounded-xl shadow-lg p-6`}
+                } rounded-xl shadow-lg p-6 flex flex-col h-full`}
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold flex items-center">
@@ -1072,7 +1127,7 @@ const SnackInventoryApp = () => {
                     Top Items by Category
                   </h3>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-4 flex-1">
                   {dashboardData.topByCategory.map((categoryData) => (
                     <div
                       key={categoryData._id || categoryData.category}
