@@ -73,11 +73,12 @@ const SnackInventoryApp = () => {
 
   useEffect(() => {
     if (user) {
-      loadInitialData();
       if (user.role === "customer") {
         setActiveView("shop");
+        loadSnacks(); // Only load snacks for customers
         loadUserPurchaseHistory();
       } else {
+        loadInitialData(); // Load all data for admin
         setActiveView("dashboard");
       }
     }
@@ -86,6 +87,12 @@ const SnackInventoryApp = () => {
   useEffect(() => {
     localStorage.setItem("darkMode", JSON.stringify(darkMode));
   }, [darkMode]);
+
+  // Add this new useEffect
+  useEffect(() => {
+    // Scroll to top when view changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeView]);
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -126,6 +133,10 @@ const SnackInventoryApp = () => {
   const loadStats = async () => {
     try {
       console.log("--- STARTING STATS LOAD (Final Attempt) ---");
+
+      if (user?.role !== "admin") {
+        return;
+      }
 
       // Step 1: Fetch Snack Stats - this now returns the payload object directly.
       const snackStatsPayload = await snacksAPI.getStats();
@@ -658,6 +669,16 @@ const SnackInventoryApp = () => {
         {/* Enhanced Dashboard View - Replace the existing Dashboard View section with this */}
         {activeView === "dashboard" && user.role === "admin" && (
           <div className="space-y-8">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Dashboard</h2>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center shadow-lg"
+              >
+                <Plus size={18} className="mr-2" />
+                Add New Snack
+              </button>
+            </div>
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div
@@ -1307,8 +1328,8 @@ const SnackInventoryApp = () => {
                         Total Items Sold
                       </span>
                       <span className="font-semibold">
-                        {snacks.reduce(
-                          (sum, snack) => sum + (snack.sales || 0),
+                        {dashboardData.categoryStats.reduce(
+                          (sum, cat) => sum + (cat.totalSales || 0),
                           0
                         )}
                       </span>
