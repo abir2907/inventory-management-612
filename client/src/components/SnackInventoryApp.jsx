@@ -34,7 +34,10 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { snacksAPI, salesAPI, usersAPI } from "../services/api";
 
-const SnackInventoryApp = () => {
+const SnackInventoryApp = ({
+  siteTemporarilyClosed,
+  setSiteTemporarilyClosed,
+}) => {
   const { user, logout, isLoading } = useAuth();
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("darkMode");
@@ -1385,6 +1388,28 @@ const SnackInventoryApp = () => {
                   >
                     <Package size={16} className="mr-2" />
                     Manage Inventory
+                  </button>
+                  <button
+                    onClick={() =>
+                      setSiteTemporarilyClosed(!siteTemporarilyClosed)
+                    }
+                    className={`w-full py-2 px-4 rounded-lg transition-colors flex items-center justify-center ${
+                      siteTemporarilyClosed
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-red-600 hover:bg-red-700 text-white"
+                    }`}
+                  >
+                    {siteTemporarilyClosed ? (
+                      <>
+                        <CheckCircle size={16} className="mr-2" />
+                        Open Site
+                      </>
+                    ) : (
+                      <>
+                        <X size={16} className="mr-2" />
+                        Close Site
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
