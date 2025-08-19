@@ -103,7 +103,7 @@ const TemporarilyClosedComponent = () => {
         <div className="max-w-2xl w-full text-center">
           {/* Main Icon */}
           <div className="text-6xl sm:text-7xl mb-8 filter drop-shadow-lg">
-            🔧
+            🥱
           </div>
 
           {/* Status Badge */}
@@ -119,8 +119,14 @@ const TemporarilyClosedComponent = () => {
           </div>
 
           {/* Main Message */}
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            We'll Be Back Soon!
+          <h1
+            className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 pb-2"
+            style={{ lineHeight: "1.2" }}
+          >
+            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              We are sleeping...
+            </span>
+            <span className="ml-2">😴</span>
           </h1>
 
           <div
@@ -155,8 +161,10 @@ const TemporarilyClosedComponent = () => {
                   darkMode ? "text-gray-300" : "text-gray-600"
                 } leading-relaxed`}
               >
-                Snack Hub is currently undergoing maintenance to serve you
-                better. We're working hard to improve your snacking experience!
+                The Snack Hub team is currently having a good night's (or
+                morning's) sleep. We will be open for service as soon as we wake
+                up. Afterall we'll need to be well rested to serve our friends
+                well.
               </p>
 
               <div className="grid sm:grid-cols-2 gap-6 mb-8">
