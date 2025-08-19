@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { snacksAPI, salesAPI, usersAPI } from "../services/api";
+import { siteAPI } from "../services/api";
 
 const SnackInventoryApp = ({
   siteTemporarilyClosed,
@@ -484,6 +485,34 @@ const SnackInventoryApp = ({
     logout();
     setCart([]);
     setActiveView("dashboard");
+  };
+
+  const handleSiteToggle = async () => {
+    try {
+      setLoading(true);
+      const newStatus = !siteTemporarilyClosed;
+
+      // Call the API to update site status
+      const response = await siteAPI.updateSiteStatus(newStatus);
+
+      // Update local state with the response
+      if (response.success) {
+        setSiteTemporarilyClosed(response.data.isTemporarilyClosed);
+        toast.success(
+          response.message ||
+            (newStatus
+              ? "Site has been temporarily closed"
+              : "Site has been reopened")
+        );
+      } else {
+        throw new Error(response.message || "Failed to update site status");
+      }
+    } catch (error) {
+      console.error("Error updating site status:", error);
+      toast.error(error.message || "Failed to update site status");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -1390,16 +1419,20 @@ const SnackInventoryApp = ({
                     Manage Inventory
                   </button>
                   <button
-                    onClick={() =>
-                      setSiteTemporarilyClosed(!siteTemporarilyClosed)
-                    }
-                    className={`w-full py-2 px-4 rounded-lg transition-colors flex items-center justify-center ${
+                    onClick={handleSiteToggle}
+                    disabled={loading}
+                    className={`w-full py-2 px-4 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50 ${
                       siteTemporarilyClosed
                         ? "bg-green-600 hover:bg-green-700 text-white"
                         : "bg-red-600 hover:bg-red-700 text-white"
                     }`}
                   >
-                    {siteTemporarilyClosed ? (
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                        Updating...
+                      </>
+                    ) : siteTemporarilyClosed ? (
                       <>
                         <CheckCircle size={16} className="mr-2" />
                         Open Site

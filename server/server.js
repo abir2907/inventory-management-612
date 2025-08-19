@@ -17,6 +17,10 @@ const authRoutes = require("./routes/auth");
 const snackRoutes = require("./routes/snacks");
 const salesRoutes = require("./routes/sales");
 const userRoutes = require("./routes/users");
+const siteRoutes = require("./routes/site");
+
+// Import models to ensure they're registered
+require("./models/SiteStatus");
 
 // Middleware
 // server.js
@@ -25,13 +29,14 @@ app.use(
   cors({
     origin: [
       process.env.CLIENT_URL,
+      "http://localhost:5173",
       "http://127.0.0.1:5173",
       "http://localhost:3000",
       "http://127.0.0.1:3000",
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
@@ -79,6 +84,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/snacks", snackRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/site", siteRoutes);
 
 app.get("/", (req, res) => {
   res.send("API Working");

@@ -142,6 +142,13 @@ export const salesAPI = {
     API.post(`/sales/${id}/refund`, refundData),
 };
 
+// Site status API
+export const siteAPI = {
+  getSiteStatus: () => API.get("/site/status"),
+  updateSiteStatus: (isTemporarilyClosed, reason = "") =>
+    API.patch("/site/status", { isTemporarilyClosed, reason }),
+};
+
 // Users API
 export const usersAPI = {
   getUsers: (params) => API.get("/users", { params }),
