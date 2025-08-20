@@ -17,15 +17,7 @@ const snackSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: [
-        "chips",
-        "chocolate",
-        "cookies",
-        "cake",
-        "noodles",
-        "namkeen",
-        "other",
-      ],
+      enum: ["chips", "sweets", "instant meals", "other"],
       lowercase: true,
     },
     price: {

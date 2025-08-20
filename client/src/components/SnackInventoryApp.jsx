@@ -1028,16 +1028,10 @@ const SnackInventoryApp = ({
                           <span className="text-2xl mr-3">
                             {category._id === "chips"
                               ? "🍟"
-                              : category._id === "chocolate"
+                              : category._id === "sweets"
                               ? "🍫"
-                              : category._id === "cookies"
-                              ? "🍪"
-                              : category._id === "cake"
-                              ? "🍰"
-                              : category._id === "noodles"
+                              : category._id === "instant meals"
                               ? "🍜"
-                              : category._id === "namkeen"
-                              ? "🥨"
                               : "🍿"}
                           </span>
                           <div>
@@ -1194,20 +1188,11 @@ const SnackInventoryApp = ({
                           "chips"
                             ? "🍟"
                             : (categoryData._id || categoryData.category) ===
-                              "chocolate"
-                            ? "🍫"
+                              "sweets"
+                            ? "🍬"
                             : (categoryData._id || categoryData.category) ===
-                              "cookies"
-                            ? "🍪"
-                            : (categoryData._id || categoryData.category) ===
-                              "cake"
-                            ? "🍰"
-                            : (categoryData._id || categoryData.category) ===
-                              "noodles"
-                            ? "🍜"
-                            : (categoryData._id || categoryData.category) ===
-                              "namkeen"
-                            ? "🥨"
+                              "instant meals"
+                            ? "🍲"
                             : "🍿"}
                         </span>
                         <h4 className="font-semibold capitalize">
@@ -1495,11 +1480,8 @@ const SnackInventoryApp = ({
                 >
                   <option value="all">All Categories</option>
                   <option value="chips">Chips</option>
-                  <option value="chocolate">Chocolate</option>
-                  <option value="cookies">Cookies</option>
-                  <option value="cake">Cake</option>
-                  <option value="noodles">Noodles</option>
-                  <option value="namkeen">Namkeen</option>
+                  <option value="sweets">Sweets</option>
+                  <option value="instant meals">Instant Meals</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -1617,30 +1599,23 @@ const SnackInventoryApp = ({
             </div>
 
             <div className="flex flex-wrap gap-2 justify-center">
-              {[
-                "all",
-                "chips",
-                "chocolate",
-                "cookies",
-                "cake",
-                "noodles",
-                "namkeen",
-                "other",
-              ].map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setFilterCategory(category)}
-                  className={`px-4 py-2 rounded-full font-medium transition-all ${
-                    filterCategory === category
-                      ? "bg-blue-600 text-white shadow-lg"
-                      : darkMode
-                      ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                      : "bg-white text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </button>
-              ))}
+              {["all", "chips", "sweets", "instant meals", "other"].map(
+                (category) => (
+                  <button
+                    key={category}
+                    onClick={() => setFilterCategory(category)}
+                    className={`px-4 py-2 rounded-full font-medium transition-all ${
+                      filterCategory === category
+                        ? "bg-blue-600 text-white shadow-lg"
+                        : darkMode
+                        ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                        : "bg-white text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </button>
+                )
+              )}
             </div>
 
             <div className="relative max-w-md mx-auto">
@@ -2670,7 +2645,7 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
     description: snack?.description || "",
     lowStockAlert: snack?.lowStockAlert ?? 5,
     imageUrl: snack?.imageUrl || "",
-    imageFile: null, // Add this
+    imageFile: null,
   });
 
   const handleSubmit = (e) => {
@@ -2757,11 +2732,8 @@ const SnackModal = ({ snack, onSave, onClose, darkMode }) => {
               } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             >
               <option value="chips">Chips</option>
-              <option value="chocolate">Chocolate</option>
-              <option value="cookies">Cookies</option>
-              <option value="cake">Cake</option>
-              <option value="noodles">Noodles</option>
-              <option value="namkeen">Namkeen</option>
+              <option value="sweets">Sweets</option>
+              <option value="instant meals">Instant Meals</option>
               <option value="other">Other</option>
             </select>
           </div>
