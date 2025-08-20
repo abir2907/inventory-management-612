@@ -366,15 +366,7 @@ router.put(
       .withMessage("Name cannot be empty"),
     body("category")
       .optional()
-      .isIn([
-        "chips",
-        "chocolate",
-        "cookies",
-        "cake",
-        "noodles",
-        "namkeen",
-        "other",
-      ])
+      .isIn(["chips", "sweets", "instant meals", "other"])
       .withMessage("Invalid category"),
     body("price")
       .optional()
