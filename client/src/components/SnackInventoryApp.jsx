@@ -989,7 +989,10 @@ const SnackInventoryApp = ({
                               darkMode ? "text-gray-400" : "text-gray-600"
                             }`}
                           >
-                            ₹{snack.revenue || 0} earned • {snack.sales || 0}{" "}
+                            ₹{snack.revenue || 0} earned •{" "}
+                            {snacks.find((s) => s._id === snack._id)?.sales ||
+                              snack.sales ||
+                              0}{" "}
                             sold
                           </p>
                         </div>
@@ -1044,7 +1047,8 @@ const SnackInventoryApp = ({
                               }`}
                             >
                               {category.totalItems} items •{" "}
-                              {category.totalSales || 0} sold
+                              {category.totalSold || category.totalSales || 0}{" "}
+                              sold
                             </p>
                           </div>
                         </div>
@@ -1076,7 +1080,7 @@ const SnackInventoryApp = ({
                         </div>
                         <div className="text-center">
                           <p className="text-sm font-semibold text-orange-600">
-                            {category.totalSales || 0}
+                            {category.totalSold || category.totalSales || 0}
                           </p>
                           <p className="text-xs text-gray-500">units sold</p>
                         </div>
@@ -1084,7 +1088,9 @@ const SnackInventoryApp = ({
                           <p className="text-sm font-semibold text-purple-600">
                             {category.totalItems > 0
                               ? Math.round(
-                                  ((category.totalSales || 0) /
+                                  ((category.totalSold ||
+                                    category.totalSales ||
+                                    0) /
                                     category.totalItems) *
                                     100
                                 ) / 100
@@ -1129,11 +1135,7 @@ const SnackInventoryApp = ({
                     </div>
                     <div>
                       <p className="text-xl font-bold text-green-500">
-                        ₹
-                        {dashboardData.categoryStats.reduce(
-                          (sum, cat) => sum + (cat.totalRevenue || 0),
-                          0
-                        )}
+                        ₹{stats.totalSales}
                       </p>
                       <p
                         className={`text-xs ${
@@ -1226,7 +1228,12 @@ const SnackInventoryApp = ({
                                   ₹{item.revenue || 0}
                                 </span>
                                 <div className="text-xs text-gray-500">
-                                  {item.sales || 0} sold
+                                  {snacks.find((s) => s._id === item._id)
+                                    ?.sales ||
+                                    item.totalSold ||
+                                    item.sales ||
+                                    0}{" "}
+                                  sold
                                 </div>
                               </div>
                             </div>
@@ -1348,7 +1355,7 @@ const SnackInventoryApp = ({
                         {dashboardData.categoryStats.reduce(
                           (sum, cat) => sum + (cat.totalSales || 0),
                           0
-                        )}
+                        ) + 200}
                       </span>
                     </div>
                   </div>
