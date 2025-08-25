@@ -261,15 +261,7 @@ router.post(
   [
     body("name").trim().isLength({ min: 1 }).withMessage("Name is required"),
     body("category")
-      .isIn([
-        "chips",
-        "chocolate",
-        "cookies",
-        "cake",
-        "noodles",
-        "namkeen",
-        "other",
-      ])
+      .isIn(["chips", "sweets", "instant meals", "other"])
       .withMessage("Invalid category"),
     body("price")
       .isFloat({ min: 0 })

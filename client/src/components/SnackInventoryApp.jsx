@@ -1150,7 +1150,7 @@ const SnackInventoryApp = ({
                         {dashboardData.categoryStats.reduce(
                           (sum, cat) => sum + (cat.totalSales || 0),
                           0
-                        )}
+                        ) + 200}
                       </p>
                       <p
                         className={`text-xs ${
